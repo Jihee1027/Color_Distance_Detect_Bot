@@ -46,6 +46,7 @@ typedef struct {
     display_loading_stage_t loading_stage;
     bool color_found_pulse;
     bool distance_done_pulse;
+    uint16_t selected_color_rgb565;
 } display_data_t;
 
 #endif

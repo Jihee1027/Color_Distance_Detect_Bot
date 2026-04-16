@@ -79,27 +79,6 @@ static void start_screen_draw_background(void) {
     start_screen_draw_cloud(228, 96, 5);
 }
 
-static void start_screen_draw_title(uint16_t box_x, uint16_t box_y,
-                                    uint16_t box_w, uint16_t box_h,
-                                    bool pressed) {
-    const char *text = "START";
-    uint8_t scale = 5;
-
-    uint16_t tw = text_get_width(text, scale);
-    uint16_t th = 7 * scale;
-
-    uint16_t x = box_x + (box_w - tw) / 2;
-    uint16_t y = box_y + (box_h - th) / 2 + (pressed ? 1 : 0);
-
-    text_draw_text_scaled(x, y, text, COLOR_START_MAIN, COLOR_PANEL_FILL, scale);
-    text_draw_text_scaled_transparent(x + 3, y + 4, text, COLOR_START_SHADOW, scale);
-    text_draw_text_scaled_transparent(x + 2, y + 1, text, COLOR_START_OUTLINE, scale);
-
-    if (!pressed) {
-        text_draw_text_scaled_transparent(x, y - 2, text, COLOR_START_LIGHT, scale);
-    }
-}
-
 void start_screen_render_static(void) {
     start_screen_draw_background();
 

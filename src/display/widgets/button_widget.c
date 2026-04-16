@@ -7,95 +7,57 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-static uint16_t g_button_widget_start_buf[BTN_BUF_W * BTN_BUF_H];
-static uint16_t g_start_box_buf[START_BUF_W * START_BUF_H];
-static uint16_t g_color_title_buf[COLOR_TITLE_BUF_W * COLOR_TITLE_BUF_H];
-static uint16_t g_color_option_buf[COLOR_OPTION_BUF_W * COLOR_OPTION_BUF_H];
-static uint16_t g_color_hint_buf[COLOR_HINT_BUF_W * COLOR_HINT_BUF_H];
+/* Shared widget buffer: sized by the largest widget area instead of the widest widget. */
+#define WIDGET_SHARED_BUF_PIXELS (START_BUF_W * START_BUF_H)
+static uint16_t g_widget_buf[WIDGET_SHARED_BUF_PIXELS];
+static int g_widget_stride = START_BUF_W;
+static int g_widget_height = START_BUF_H;
 
 typedef void (*buf_fill_rect_fn)(int x, int y, int w, int h, uint16_t color);
 
-static void button_widget_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
+static void widget_buf_set_geometry(int stride, int height) {
+    g_widget_stride = stride;
+    g_widget_height = height;
+}
+
+static void widget_buf_fill_rect_common(int x, int y, int w, int h, uint16_t color) {
     if (w <= 0 || h <= 0) return;
 
     if (x < 0) { w += x; x = 0; }
     if (y < 0) { h += y; y = 0; }
-    if (x + w > BTN_BUF_W) w = BTN_BUF_W - x;
-    if (y + h > BTN_BUF_H) h = BTN_BUF_H - y;
+    if (x + w > g_widget_stride) w = g_widget_stride - x;
+    if (y + h > g_widget_height) h = g_widget_height - y;
     if (w <= 0 || h <= 0) return;
 
     for (int yy = y; yy < y + h; yy++) {
-        for (int xx = x; xx < x + w; xx++) {
-            g_button_widget_start_buf[yy * BTN_BUF_W + xx] = color;
+        uint16_t *row = &g_widget_buf[yy * g_widget_stride + x];
+        for (int xx = 0; xx < w; xx++) {
+            row[xx] = color;
         }
     }
+}
+
+static void button_widget_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
+    widget_buf_fill_rect_common(x, y, w, h, color);
 }
 
 static void start_box_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
-    if (w <= 0 || h <= 0) return;
-
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > START_BUF_W) w = START_BUF_W - x;
-    if (y + h > START_BUF_H) h = START_BUF_H - y;
-    if (w <= 0 || h <= 0) return;
-
-    for (int yy = y; yy < y + h; yy++) {
-        for (int xx = x; xx < x + w; xx++) {
-            g_start_box_buf[yy * START_BUF_W + xx] = color;
-        }
-    }
+    widget_buf_fill_rect_common(x, y, w, h, color);
 }
 
 static void color_title_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
-    if (w <= 0 || h <= 0) return;
-
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > COLOR_TITLE_BUF_W) w = COLOR_TITLE_BUF_W - x;
-    if (y + h > COLOR_TITLE_BUF_H) h = COLOR_TITLE_BUF_H - y;
-    if (w <= 0 || h <= 0) return;
-
-    for (int yy = y; yy < y + h; yy++) {
-        for (int xx = x; xx < x + w; xx++) {
-            g_color_title_buf[yy * COLOR_TITLE_BUF_W + xx] = color;
-        }
-    }
+    widget_buf_fill_rect_common(x, y, w, h, color);
 }
 
 static void color_option_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
-    if (w <= 0 || h <= 0) return;
-
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > COLOR_OPTION_BUF_W) w = COLOR_OPTION_BUF_W - x;
-    if (y + h > COLOR_OPTION_BUF_H) h = COLOR_OPTION_BUF_H - y;
-    if (w <= 0 || h <= 0) return;
-
-    for (int yy = y; yy < y + h; yy++) {
-        for (int xx = x; xx < x + w; xx++) {
-            g_color_option_buf[yy * COLOR_OPTION_BUF_W + xx] = color;
-        }
-    }
+    widget_buf_fill_rect_common(x, y, w, h, color);
 }
 
 static void color_hint_buf_fill_rect(int x, int y, int w, int h, uint16_t color) {
-    if (w <= 0 || h <= 0) return;
-
-    if (x < 0) { w += x; x = 0; }
-    if (y < 0) { h += y; y = 0; }
-    if (x + w > COLOR_HINT_BUF_W) w = COLOR_HINT_BUF_W - x;
-    if (y + h > COLOR_HINT_BUF_H) h = COLOR_HINT_BUF_H - y;
-    if (w <= 0 || h <= 0) return;
-
-    for (int yy = y; yy < y + h; yy++) {
-        for (int xx = x; xx < x + w; xx++) {
-            g_color_hint_buf[yy * COLOR_HINT_BUF_W + xx] = color;
-        }
-    }
+    widget_buf_fill_rect_common(x, y, w, h, color);
 }
 
-static void fill_circle_generic(int cx, int cy, int r,
+void fill_circle_generic(int cx, int cy, int r,
                                 uint16_t color,
                                 buf_fill_rect_fn fill_rect) {
     for (int y = -r; y <= r; y++) {
@@ -107,7 +69,7 @@ static void fill_circle_generic(int cx, int cy, int r,
     }
 }
 
-static void draw_cloud_full_generic(int x, int y, int s,
+void draw_cloud_full_generic(int x, int y, int s,
                                     int origin_x, int origin_y,
                                     buf_fill_rect_fn fill_rect) {
     int r1 = 8 * s / 10;
@@ -237,39 +199,6 @@ void draw_loading_scene_overlay_generic(int origin_x, int origin_y,
     draw_cloud_full_generic(86,  92, 5, origin_x, origin_y, fill_rect);
     draw_cloud_full_generic(150, 108, 5, origin_x, origin_y, fill_rect);
     draw_cloud_full_generic(228, 96, 5, origin_x, origin_y, fill_rect);
-}
-
-static void draw_scene_bg_generic(int buf_w, int buf_h,
-                                  int origin_x, int origin_y,
-                                  uint16_t *buf,
-                                  buf_fill_rect_fn fill_rect) {
-    for (int y = 0; y < buf_h; y++) {
-        int screen_y = origin_y + y;
-
-        for (int x = 0; x < buf_w; x++) {
-            int screen_x = origin_x + x;
-            uint16_t color;
-
-            if (screen_y < 25) color = COLOR_SKY_TOP;
-            else if (screen_y < 55) color = COLOR_SKY_MID1;
-            else if (screen_y < 95) color = COLOR_SKY_MID2;
-            else if (screen_y < 130) color = COLOR_SKY_LOW;
-            else if (screen_y < 160) color = COLOR_SKY_MID2;
-            else if (screen_y < 165) color = COLOR_GRASS_DARK;
-            else if (screen_y < 190) color = COLOR_GRASS;
-            else if (screen_y < 194) color = COLOR_DIRT_DARK;
-            else {
-                int mod = screen_x % 24;
-                if (mod < 8) color = COLOR_DIRT_DARK;
-                else if (mod < 14) color = COLOR_DIRT_LIGHT;
-                else color = COLOR_DIRT;
-            }
-
-            buf[y * buf_w + x] = color;
-        }
-    }
-
-    draw_start_box_scene_overlay_generic(origin_x, origin_y, fill_rect);
 }
 
 static void color_option_buf_draw_panel(int x, int y, int w, int h,
@@ -503,6 +432,7 @@ static uint16_t start_box_buf_text_width(const char *text, uint8_t scale) {
 }
 
 static void button_widget_start_draw_bg(void) {
+    widget_buf_set_geometry(BTN_BUF_W, BTN_BUF_H);
     for (int y = 0; y < BTN_BUF_H; y++) {
         int screen_y = BTN_SCREEN_Y + y;
 
@@ -521,30 +451,34 @@ static void button_widget_start_draw_bg(void) {
                 int screen_x = BTN_SCREEN_X + x;
                 int mod = screen_x % 24;
 
-                if (mod < 8) g_button_widget_start_buf[y * BTN_BUF_W + x] = COLOR_DIRT_DARK;
-                else if (mod < 14) g_button_widget_start_buf[y * BTN_BUF_W + x] = COLOR_DIRT_LIGHT;
-                else g_button_widget_start_buf[y * BTN_BUF_W + x] = COLOR_DIRT;
+                if (mod < 8) g_widget_buf[y * g_widget_stride + x] = COLOR_DIRT_DARK;
+                else if (mod < 14) g_widget_buf[y * g_widget_stride + x] = COLOR_DIRT_LIGHT;
+                else g_widget_buf[y * g_widget_stride + x] = COLOR_DIRT;
             }
         }
     }
 }
 
 static void color_title_draw_bg(void) {
+    widget_buf_set_geometry(COLOR_TITLE_BUF_W, COLOR_TITLE_BUF_H);
     draw_loading_scene_overlay_generic(COLOR_TITLE_SCREEN_X, COLOR_TITLE_SCREEN_Y,
                                        color_title_buf_fill_rect);
 }
 
 static void color_option_draw_bg(void) {
+    widget_buf_set_geometry(COLOR_OPTION_BUF_W, COLOR_OPTION_BUF_H);
     draw_loading_scene_overlay_generic(COLOR_OPTION_SCREEN_X, COLOR_OPTION_SCREEN_Y,
                                        color_option_buf_fill_rect);
 }
 
 static void color_hint_draw_bg(void) {
+    widget_buf_set_geometry(COLOR_HINT_BUF_W, COLOR_HINT_BUF_H);
     draw_loading_scene_overlay_generic(COLOR_HINT_SCREEN_X, COLOR_HINT_SCREEN_Y,
                                        color_hint_buf_fill_rect);
 }
 
 static void start_box_draw_bg(void) {
+    widget_buf_set_geometry(START_BUF_W, START_BUF_H);
     draw_loading_scene_overlay_generic(START_SCREEN_X, START_SCREEN_Y,
                                        start_box_buf_fill_rect);
 }
@@ -604,13 +538,14 @@ static void color_title_draw_label(void) {
 }
 
 void button_widget_start_blit(uint16_t screen_x, uint16_t screen_y) {
+    widget_buf_set_geometry(BTN_BUF_W, BTN_BUF_H);
     display_hw_set_window(screen_x, screen_y, screen_x + BTN_BUF_W - 1, screen_y + BTN_BUF_H - 1);
     display_hw_begin_pixels();
 
     for (int i = 0; i < BTN_BUF_W * BTN_BUF_H; i++) {
         uint8_t pixel[2];
-        pixel[0] = (uint8_t)(g_button_widget_start_buf[i] >> 8);
-        pixel[1] = (uint8_t)(g_button_widget_start_buf[i] & 0xFF);
+        pixel[0] = (uint8_t)(g_widget_buf[i] >> 8);
+        pixel[1] = (uint8_t)(g_widget_buf[i] & 0xFF);
         spi_write_blocking(display_hw_get_port(), pixel, 2);
     }
 
@@ -681,13 +616,14 @@ void button_widget_start_box_draw_frame(uint8_t press_depth) {
 }
 
 void button_widget_start_box_blit(uint16_t screen_x, uint16_t screen_y) {
+    widget_buf_set_geometry(START_BUF_W, START_BUF_H);
     display_hw_set_window(screen_x, screen_y, screen_x + START_BUF_W - 1, screen_y + START_BUF_H - 1);
     display_hw_begin_pixels();
 
     for (int i = 0; i < START_BUF_W * START_BUF_H; i++) {
         uint8_t pixel[2];
-        pixel[0] = (uint8_t)(g_start_box_buf[i] >> 8);
-        pixel[1] = (uint8_t)(g_start_box_buf[i] & 0xFF);
+        pixel[0] = (uint8_t)(g_widget_buf[i] >> 8);
+        pixel[1] = (uint8_t)(g_widget_buf[i] & 0xFF);
         spi_write_blocking(display_hw_get_port(), pixel, 2);
     }
 
@@ -814,6 +750,7 @@ void button_widget_color_title_draw_frame(uint8_t scale_step) {
 }
 
 void button_widget_color_title_blit(uint16_t screen_x, uint16_t screen_y) {
+    widget_buf_set_geometry(COLOR_TITLE_BUF_W, COLOR_TITLE_BUF_H);
     display_hw_set_window(screen_x, screen_y,
                           screen_x + COLOR_TITLE_BUF_W - 1,
                           screen_y + COLOR_TITLE_BUF_H - 1);
@@ -821,8 +758,8 @@ void button_widget_color_title_blit(uint16_t screen_x, uint16_t screen_y) {
 
     for (int i = 0; i < COLOR_TITLE_BUF_W * COLOR_TITLE_BUF_H; i++) {
         uint8_t pixel[2];
-        pixel[0] = (uint8_t)(g_color_title_buf[i] >> 8);
-        pixel[1] = (uint8_t)(g_color_title_buf[i] & 0xFF);
+        pixel[0] = (uint8_t)(g_widget_buf[i] >> 8);
+        pixel[1] = (uint8_t)(g_widget_buf[i] & 0xFF);
         spi_write_blocking(display_hw_get_port(), pixel, 2);
     }
 
@@ -860,6 +797,7 @@ void button_widget_color_option_draw_frame(const char *label, uint16_t main_colo
 }
 
 void button_widget_color_option_blit(uint16_t screen_x, uint16_t screen_y) {
+    widget_buf_set_geometry(COLOR_OPTION_BUF_W, COLOR_OPTION_BUF_H);
     display_hw_set_window(screen_x, screen_y,
                           screen_x + COLOR_OPTION_BUF_W - 1,
                           screen_y + COLOR_OPTION_BUF_H - 1);
@@ -867,8 +805,8 @@ void button_widget_color_option_blit(uint16_t screen_x, uint16_t screen_y) {
 
     for (int i = 0; i < COLOR_OPTION_BUF_W * COLOR_OPTION_BUF_H; i++) {
         uint8_t pixel[2];
-        pixel[0] = (uint8_t)(g_color_option_buf[i] >> 8);
-        pixel[1] = (uint8_t)(g_color_option_buf[i] & 0xFF);
+        pixel[0] = (uint8_t)(g_widget_buf[i] >> 8);
+        pixel[1] = (uint8_t)(g_widget_buf[i] & 0xFF);
         spi_write_blocking(display_hw_get_port(), pixel, 2);
     }
 
@@ -876,6 +814,7 @@ void button_widget_color_option_blit(uint16_t screen_x, uint16_t screen_y) {
 }
 
 void button_widget_color_hint_blit(uint16_t screen_x, uint16_t screen_y) {
+    widget_buf_set_geometry(COLOR_HINT_BUF_W, COLOR_HINT_BUF_H);
     display_hw_set_window(screen_x, screen_y,
                           screen_x + COLOR_HINT_BUF_W - 1,
                           screen_y + COLOR_HINT_BUF_H - 1);
@@ -883,8 +822,8 @@ void button_widget_color_hint_blit(uint16_t screen_x, uint16_t screen_y) {
 
     for (int i = 0; i < COLOR_HINT_BUF_W * COLOR_HINT_BUF_H; i++) {
         uint8_t pixel[2];
-        pixel[0] = (uint8_t)(g_color_hint_buf[i] >> 8);
-        pixel[1] = (uint8_t)(g_color_hint_buf[i] & 0xFF);
+        pixel[0] = (uint8_t)(g_widget_buf[i] >> 8);
+        pixel[1] = (uint8_t)(g_widget_buf[i] & 0xFF);
         spi_write_blocking(display_hw_get_port(), pixel, 2);
     }
 

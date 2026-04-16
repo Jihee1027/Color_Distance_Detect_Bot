@@ -104,7 +104,7 @@ void color_screen_render(display_data_t *data) {
     }
 
     if (disappearing) {
-        if (absolute_time_diff_us(disappear_tick, get_absolute_time()) >= 35000) {
+        if (absolute_time_diff_us(disappear_tick, get_absolute_time()) >= 25000) {
             button_widget_color_title_draw_disappear_frame(disappear_step);
             button_widget_color_title_blit(COLOR_TITLE_SCREEN_X, COLOR_TITLE_SCREEN_Y);
 

@@ -26,14 +26,10 @@ int main(void) {
         .color_found_pulse = false,
         .distance_done_pulse = false
     };
-
     bool last_start_requested = false;
     bool loading_timer_started = false;
     absolute_time_t loading_stage_start;
     display_loading_stage_t last_loading_stage = DISPLAY_LOADING_STAGE_SEARCH_COLOR;
-
-    bool stop_timer_started = false;
-    absolute_time_t stop_start_time;
 
     while (1) {
         if (data.screen == DISPLAY_SCREEN_LOADING) {
@@ -61,48 +57,6 @@ int main(void) {
             loading_timer_started = false;
         }
 
-        if (data.screen == DISPLAY_SCREEN_DRIVE) {
-            if (data.state == DISPLAY_STATE_MOVING) {
-                if (data.distance_in < data.total_distance_in - 5.0f) {
-                    data.distance_in += 0.05f;
-                } else {
-                    data.distance_in = data.total_distance_in - 5.0f;
-                    data.state = DISPLAY_STATE_INTERRUPTED;
-                }
-
-                if (data.battery_v > 6.4f) {
-                    data.battery_v -= 0.0005f;
-                }
-
-                stop_timer_started = false;
-            } else if (data.state == DISPLAY_STATE_INTERRUPTED ||
-                       data.state == DISPLAY_STATE_STOPPED) {
-                if (!stop_timer_started) {
-                    stop_timer_started = true;
-                    stop_start_time = get_absolute_time();
-                }
-
-                if (absolute_time_diff_us(stop_start_time, get_absolute_time()) >= 10000000) {
-                    data.screen = DISPLAY_SCREEN_START;
-                    data.state = DISPLAY_STATE_MOVING;
-                    data.distance_in = 0.0f;
-                    data.total_distance_in = 10.0f;
-                    data.battery_v = 7.8f;
-                    data.color_name = "";
-                    data.selected_color = DISPLAY_COLOR_NONE;
-                    data.selected_color_hex = 0x0000;
-                    data.start_requested = false;
-                    data.color_locked = false;
-                    data.loading_stage = DISPLAY_LOADING_STAGE_SEARCH_COLOR;
-                    data.color_found_pulse = false;
-                    data.distance_done_pulse = false;
-                    stop_timer_started = false;
-                }
-            }
-        } else {
-            stop_timer_started = false;
-        }
-
         display_render(&data);
 
         if (data.start_requested && !last_start_requested) {
@@ -124,7 +78,20 @@ int main(void) {
         }
 
         last_start_requested = data.start_requested;
-        sleep_ms(10);
+       if (data.screen == DISPLAY_SCREEN_DRIVE) {
+            if (data.distance_in < data.total_distance_in - 5.0f) {
+                data.distance_in += 0.05f;
+                data.state = DISPLAY_STATE_MOVING;
+            } else {
+                data.distance_in = data.total_distance_in - 5.0f;
+                data.state = DISPLAY_STATE_INTERRUPTED;
+            }
+
+            if (data.battery_v > 6.4f) {
+                data.battery_v -= 0.0005f;
+            }
+        }
+        sleep_ms(5);
     }
 
     return 0;

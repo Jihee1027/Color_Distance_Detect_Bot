@@ -130,7 +130,7 @@ void start_screen_render(display_data_t *data) {
     }
 
     if (disappearing) {
-        if (absolute_time_diff_us(disappear_tick, get_absolute_time()) >= 35000) {
+        if (absolute_time_diff_us(disappear_tick, get_absolute_time()) >= 25000) {
             button_widget_start_box_draw_disappear_frame(disappear_step);
             button_widget_start_box_blit(START_SCREEN_X, START_SCREEN_Y);
 

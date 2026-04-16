@@ -642,15 +642,11 @@ void button_widget_start_draw_disappear_frame(uint8_t t) {
     int btn_h = BTN_BASE_H - shrink_h;
 
     if (btn_w <= 0 || btn_h <= 0) return;
+    int center_x = BTN_BUF_W / 2;
+    int center_y = BTN_BUF_H / 2;
 
-    int btn_x = 0;
-    int btn_y = 0;
-
-    int shadow_offset = (t < 4) ? (4 - t) : 0;
-    if (shadow_offset > 0) {
-        button_widget_buf_fill_rect(btn_x + shadow_offset, btn_y + shadow_offset,
-                                    btn_w, btn_h, COLOR_SHADOW_STRONG);
-    }
+    int btn_x = center_x - btn_w / 2;
+    int btn_y = center_y - btn_h / 2;
 
     button_widget_buf_draw_panel_double(
         btn_x, btn_y, btn_w, btn_h,
@@ -658,23 +654,20 @@ void button_widget_start_draw_disappear_frame(uint8_t t) {
         COLOR_TEXT_BOX, COLOR_BOX_BLUE_LIGHT, COLOR_BOX_BLUE_DARK
     );
 
-    if (t < 7) {
+    if (t < 3) {
         const char *text = "PUSH THE BUTTON";
-        uint16_t tw = button_widget_buf_text_width(text, BTN_TEXT_SCALE);
-        uint16_t th = 7 * BTN_TEXT_SCALE;
+        int tw = (int)button_widget_buf_text_width(text, BTN_TEXT_SCALE);
+        int th = 7 * BTN_TEXT_SCALE;
 
-        int tx = (BTN_BUF_W - tw) / 2;
-        int ty = (BTN_BUF_H - th) / 2;
+        int tx = center_x - tw / 2;
+        int ty = center_y - th / 2 - 1;
 
         button_widget_buf_draw_text_transparent(tx + 2, ty + 2, text, 0x0000, BTN_TEXT_SCALE);
         button_widget_buf_draw_text_transparent(tx + 1, ty + 1, text, 0x0004, BTN_TEXT_SCALE);
         button_widget_buf_draw_text_transparent(tx, ty, text, 0x000E, BTN_TEXT_SCALE);
         button_widget_buf_draw_text_transparent(tx + 1, ty, text, 0x000E, BTN_TEXT_SCALE);
         button_widget_buf_draw_text_transparent(tx, ty + 1, text, 0x000E, BTN_TEXT_SCALE);
-
-        if (t < 3) {
-            button_widget_buf_draw_text_transparent(tx, ty - 1, text, 0x545F, BTN_TEXT_SCALE);
-        }
+        button_widget_buf_draw_text_transparent(tx, ty - 1, text, 0x545F, BTN_TEXT_SCALE);
     }
 }
 
@@ -706,7 +699,7 @@ void button_widget_start_box_draw_disappear_frame(uint8_t t) {
         COLOR_PANEL_FILL, COLOR_PINK_LIGHT, COLOR_START_OUTLINE
     );
 
-    if (t < 6) {
+    if (t < 3) {
         const char *text = "START";
         uint8_t scale = 5;
 
@@ -860,7 +853,7 @@ void button_widget_color_title_draw_disappear_frame(uint8_t t) {
         COLOR_TEXT_BOX, COLOR_BOX_BLUE_LIGHT, COLOR_BOX_BLUE_DARK
     );
 
-    if (t < 6) {
+    if (t < 3) {
         const char *text = "SELECT THE COLOR";
         uint16_t tw = color_title_buf_text_width(text, COLOR_TITLE_TEXT_SCALE);
         uint16_t th = 7 * COLOR_TITLE_TEXT_SCALE;
@@ -914,7 +907,7 @@ void button_widget_color_option_draw_disappear_frame(const char *label,
         main_color, light_color, dark_color
     );
 
-    if (t < 7) {
+    if (t < 3) {
         uint16_t tw = color_option_buf_text_width(label, COLOR_OPTION_TEXT_SCALE);
         uint16_t th = 7 * COLOR_OPTION_TEXT_SCALE;
 

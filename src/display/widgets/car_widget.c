@@ -165,3 +165,91 @@ void car_widget_draw_to_buffer(uint16_t x, uint16_t y, uint8_t scale, uint16_t c
 
     fill_rect(x + 4 * scale, y + 15 * scale, 16 * scale, 1 * scale, COLOR_GROUND_SHADOW);
 }
+
+static void car_draw_smoke(int car_x, int car_y, int scale,
+                           uint8_t phase,
+                           buf_fill_circle_fn fill_circle) {
+
+    int base_x = car_x + 4 * scale;
+    int base_y = car_y + 10 * scale;
+
+    int s1x = base_x - phase * 2;
+    int s1y = base_y - phase;
+
+    int s2x = base_x - 10 - phase * 2;
+    int s2y = base_y - 4 - phase;
+
+    int s3x = base_x - 18 - phase;
+    int s3y = base_y - 1 - phase / 2;
+
+    fill_circle(s1x, s1y, 4, COLOR_CLOUD_SHADE);
+    fill_circle(s2x, s2y, 3, COLOR_CLOUD_DARK);
+    fill_circle(s3x, s3y, 2, COLOR_CLOUD_SHADE);
+}
+
+
+// ===== wheels =====
+static void car_draw_wheels(int car_x, int car_y, int scale,
+                            uint8_t wheel_phase,
+                            int moving,
+                            buf_fill_rect_fn fill_rect,
+                            buf_fill_circle_fn fill_circle) {
+    int wheel_y = car_y + 12 * scale;
+    int w1 = car_x + 7 * scale;
+    int w2 = car_x + 17 * scale;
+
+    fill_circle(w1, wheel_y, 3 * scale, COLOR_WHEEL_OUTER);
+    fill_circle(w2, wheel_y, 3 * scale, COLOR_WHEEL_OUTER);
+
+    fill_circle(w1, wheel_y, 2 * scale, COLOR_WHEEL_INNER);
+    fill_circle(w2, wheel_y, 2 * scale, COLOR_WHEEL_INNER);
+
+    if (!moving) {
+        fill_circle(w1, wheel_y, 1 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_circle(w2, wheel_y, 1 * scale, COLOR_WHEEL_HIGHLIGHT);
+
+        fill_rect(w1 - 1 * scale, wheel_y - 2 * scale, 2 * scale, 4 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_rect(w1 - 2 * scale, wheel_y - 1 * scale, 4 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+
+        fill_rect(w2 - 1 * scale, wheel_y - 2 * scale, 2 * scale, 4 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_rect(w2 - 2 * scale, wheel_y - 1 * scale, 4 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+        return;
+    }
+
+    if ((wheel_phase & 1u) == 0u) {
+        fill_rect(w1 - 1 * scale, wheel_y - 2 * scale, 2 * scale, 4 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_rect(w1 - 2 * scale, wheel_y - 1 * scale, 4 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+
+        fill_rect(w2 - 1 * scale, wheel_y - 2 * scale, 2 * scale, 4 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_rect(w2 - 2 * scale, wheel_y - 1 * scale, 4 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+    } else {
+        fill_rect(w1 - 1 * scale, wheel_y - 1 * scale, 2 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+        fill_rect(w2 - 1 * scale, wheel_y - 1 * scale, 2 * scale, 2 * scale, COLOR_WHEEL_HIGHLIGHT);
+    }
+}
+// ===== PUBLIC =====
+
+void car_widget_draw_moving_to_buffer(uint16_t x, uint16_t y, uint8_t scale,
+                                      uint16_t color,
+                                      buf_fill_rect_fn fill_rect,
+                                      buf_fill_circle_fn fill_circle,
+                                      uint8_t wheel_phase,
+                                      uint8_t smoke_phase) {
+
+    car_draw_smoke(x, y, scale, smoke_phase, fill_circle);
+
+    car_widget_draw_to_buffer(x, y, scale, color, fill_rect, fill_circle);
+
+    car_draw_wheels(x, y, scale, wheel_phase, 1, fill_rect, fill_circle);
+}
+
+
+void car_widget_draw_stopped_to_buffer(uint16_t x, uint16_t y, uint8_t scale,
+                                       uint16_t color,
+                                       buf_fill_rect_fn fill_rect,
+                                       buf_fill_circle_fn fill_circle) {
+
+    car_widget_draw_to_buffer(x, y, scale, color, fill_rect, fill_circle);
+
+    car_draw_wheels(x, y, scale, 0, 0, fill_rect, fill_circle);
+}

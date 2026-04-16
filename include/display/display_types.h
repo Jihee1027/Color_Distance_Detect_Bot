@@ -7,7 +7,8 @@
 typedef enum {
     DISPLAY_STATE_SEARCHING = 0,
     DISPLAY_STATE_MOVING,
-    DISPLAY_STATE_STOPPED
+    DISPLAY_STATE_STOPPED,
+    DISPLAY_STATE_INTERRUPTED
 } display_state_t;
 
 typedef enum {
@@ -15,6 +16,8 @@ typedef enum {
     DISPLAY_SCREEN_COLOR,
     DISPLAY_SCREEN_LOADING,
     DISPLAY_SCREEN_DRIVE,
+    DISPLAY_SCREEN_STOPPED,
+    DISPLAY_SCREEN_INTERUPTED,
     DISPLAY_SCREEN_MAIN
 } display_screen_t;
 
@@ -35,6 +38,7 @@ typedef enum {
 typedef struct {
     display_screen_t screen;
     float distance_in;
+    float total_distance_in;
     float battery_v;
     const char *color_name;
     display_state_t state;

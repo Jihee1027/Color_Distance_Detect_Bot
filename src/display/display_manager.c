@@ -4,7 +4,7 @@
 #include "display/screens/start_screen.h"
 #include "display/screens/color_screen.h"
 #include "display/screens/loading_screen.h"
-#include "display/screens/drive_screen.h" 
+#include "display/screens/drive_screen.h"
 
 void display_manager_render(display_data_t *data) {
     switch (data->screen) {
@@ -23,6 +23,8 @@ void display_manager_render(display_data_t *data) {
         case DISPLAY_SCREEN_DRIVE:
             drive_screen_render(data);   
             break;
+        case DISPLAY_SCREEN_STOPPED:
+
         case DISPLAY_SCREEN_MAIN:
         default:
             break;

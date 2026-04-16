@@ -3,7 +3,7 @@
 #include "hardware/spi.h"
 #include "display/display_theme.h"
 
-#define GFX_STRIP_H 18
+#define GFX_STRIP_H 22
 
 static uint16_t g_stripbuf[TFT_WIDTH * GFX_STRIP_H];
 

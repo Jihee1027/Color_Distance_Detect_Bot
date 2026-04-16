@@ -4,11 +4,14 @@
 #include "display/display_theme.h"
 #include "display/widgets/button_widget.h"
 #include "display/widgets/car_widget.h"
+#include "display/display_text.h"
+#include <stdio.h>
+#include "pico/time.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 
-#define DRIVE_STRIP_H 18
+#define DRIVE_STRIP_H 22
 
 static bool initialized = false;
 
@@ -23,6 +26,87 @@ static int g_strip_h = DRIVE_STRIP_H;
 
 static uint16_t g_road_pattern[24];
 static bool g_road_pattern_ready = false;
+
+
+static bool strip_intersects_y(int y, int h) {
+    return !(y + h <= g_strip_y0 || y >= g_strip_y0 + g_strip_h);
+}
+
+static void drive_text_fill_rect(int x, int y, int w, int h, uint16_t color) {
+    int local_y = y - g_strip_y0;
+
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    if (x < 0) {
+        w += x;
+        x = 0;
+    }
+    if (local_y < 0) {
+        h += local_y;
+        local_y = 0;
+    }
+    if (x + w > TFT_WIDTH) {
+        w = TFT_WIDTH - x;
+    }
+    if (local_y + h > g_strip_h) {
+        h = g_strip_h - local_y;
+    }
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    gfx_stripbuffer_fill_rect(x, local_y, w, h, color);
+}
+
+static void drive_draw_shadowed_text(int x, int y, const char *text, uint8_t scale) {
+    text_draw_text_scaled_transparent_to_buf(
+        (uint16_t)(x + 1),
+        (uint16_t)(y + 1),
+        text,
+        COLOR_BLACK,
+        scale,
+        drive_text_fill_rect
+    );
+
+    text_draw_text_scaled_transparent_to_buf(
+        (uint16_t)x,
+        (uint16_t)y,
+        text,
+        COLOR_WHITE,
+        scale,
+        drive_text_fill_rect
+    );
+}
+
+static void drive_draw_status_text(const display_data_t *data) {
+    const uint8_t scale = 1;
+    char battery_line[24];
+    char total_line[28];
+    char current_line[28];
+
+    snprintf(battery_line, sizeof(battery_line), "BATTERY: %.1fV", data->battery_v);
+    snprintf(total_line, sizeof(total_line), "TOTAL: %.1f in", data->total_distance_in);
+    snprintf(current_line, sizeof(current_line), "CURRENT: %.1f in", data->distance_in);
+
+    const int battery_w = (int)text_get_width(battery_line, scale);
+
+    const int left_x = 10;
+    const int total_y = 200;
+    const int current_y = 215;
+    const int battery_x = TFT_WIDTH - battery_w - 10;
+    const int battery_y = 215;
+
+    if (strip_intersects_y(total_y, 8)) {
+        drive_draw_shadowed_text(left_x, total_y, total_line, scale);
+    }
+
+    if (strip_intersects_y(current_y, 8)) {
+        drive_draw_shadowed_text(left_x, current_y, current_line, scale);
+        drive_draw_shadowed_text(battery_x, battery_y, battery_line, scale);
+    }
+}
 
 static void drive_init_road_pattern(void) {
     if (g_road_pattern_ready) {
@@ -40,10 +124,6 @@ static void drive_init_road_pattern(void) {
     }
 
     g_road_pattern_ready = true;
-}
-
-static bool strip_intersects_y(int y, int h) {
-    return !(y + h <= g_strip_y0 || y >= g_strip_y0 + g_strip_h);
 }
 
 static void drive_strip_fill_rect(int x, int y, int w, int h, uint16_t color) {
@@ -165,87 +245,68 @@ static void drive_draw_road_motion_strip(void) {
     }
 }
 
-static void drive_draw_smoke_buf(uint8_t phase, int car_x, int car_y, int scale) {
-    int sx = car_x - 8 * scale;
-    int sy = car_y + 7 * scale;
+static void drive_draw_arrived_text(void) {
+    const uint8_t scale = 2;
+    const char *text = "ARRIVED";
 
-    if (!strip_intersects_y(sy - 8, 28)) {
+    int text_w = (int)text_get_width(text, scale);
+    int text_h = 7 * scale;
+
+    int tx = (TFT_WIDTH - text_w) / 2;
+    int ty = 108;
+
+    if (!strip_intersects_y(ty, text_h + 2)) {
         return;
     }
 
-    switch (phase) {
-        case 0:
-            drive_strip_fill_circle(sx,     sy + 10, 3, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 8, sy + 6,  4, COLOR_CLOUD);
-            break;
-        case 1:
-            drive_strip_fill_circle(sx - 2,  sy + 8,  3, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 11, sy + 4,  5, COLOR_CLOUD);
-            break;
-        case 2:
-            drive_strip_fill_circle(sx - 4,  sy + 6,  4, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 14, sy + 2,  5, COLOR_CLOUD);
-            break;
-        case 3:
-            drive_strip_fill_circle(sx - 6,  sy + 4,  4, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 17, sy + 0,  6, COLOR_CLOUD);
-            break;
-        case 4:
-            drive_strip_fill_circle(sx - 8,  sy + 3,  4, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 20, sy - 2,  5, COLOR_CLOUD);
-            break;
-        default:
-            drive_strip_fill_circle(sx - 10, sy + 2,  3, COLOR_CLOUD_SHADE);
-            drive_strip_fill_circle(sx - 23, sy - 3,  4, COLOR_CLOUD);
-            break;
-    }
+    drive_draw_shadowed_text(tx, ty, text, scale);
 }
 
-static void drive_draw_wheel_motion_buf(uint8_t phase, int car_x, int car_y, int scale) {
-    int wx1 = car_x + 7 * scale;
-    int wx2 = car_x + 17 * scale;
-    int wy  = car_y + 12 * scale;
+static void drive_draw_interrupted_text(void) {
+    const uint8_t scale = 2;
+    static uint8_t dots = 0;
+    static absolute_time_t tick;
+    static bool initialized = false;
 
-    if (!strip_intersects_y(wy - 4, 8)) {
+    if (!initialized) {
+        initialized = true;
+        tick = get_absolute_time();
+        dots = 0;
+    }
+
+    if (absolute_time_diff_us(tick, get_absolute_time()) >= 400000) {
+        tick = get_absolute_time();
+        dots = (uint8_t)((dots + 1) % 4);
+    }
+
+    char text[24];
+    const char *base = "INTERRUPTED";
+
+    int len = 0;
+    while (base[len] != '\0') {
+        text[len] = base[len];
+        len++;
+    }
+
+    for (uint8_t i = 0; i < dots; i++) {
+        text[len++] = '.';
+    }
+
+    text[len] = '\0';
+
+    int text_w = (int)text_get_width(text, scale);
+    int text_h = 7 * scale;
+
+    int tx = (TFT_WIDTH - text_w) / 2;
+    int ty = 108;
+
+    if (!strip_intersects_y(ty, text_h + 2)) {
         return;
     }
 
-    switch (phase) {
-        case 0:
-            drive_strip_fill_rect(wx1 - 1, wy - 4, 2, 8, COLOR_WHITE);
-            drive_strip_fill_rect(wx2 - 1, wy - 4, 2, 8, COLOR_WHITE);
-            break;
-
-        case 1:
-            gfx_stripbuffer_draw_pixel(wx1 - 3, (wy - 3) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 - 2, (wy - 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 + 2, (wy + 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 + 3, (wy + 3) - g_strip_y0, COLOR_WHITE);
-
-            gfx_stripbuffer_draw_pixel(wx2 - 3, (wy - 3) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 - 2, (wy - 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 + 2, (wy + 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 + 3, (wy + 3) - g_strip_y0, COLOR_WHITE);
-            break;
-
-        case 2:
-            drive_strip_fill_rect(wx1 - 4, wy - 1, 8, 2, COLOR_WHITE);
-            drive_strip_fill_rect(wx2 - 4, wy - 1, 8, 2, COLOR_WHITE);
-            break;
-
-        default:
-            gfx_stripbuffer_draw_pixel(wx1 - 3, (wy + 3) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 - 2, (wy + 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 + 2, (wy - 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx1 + 3, (wy - 3) - g_strip_y0, COLOR_WHITE);
-
-            gfx_stripbuffer_draw_pixel(wx2 - 3, (wy + 3) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 - 2, (wy + 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 + 2, (wy - 2) - g_strip_y0, COLOR_WHITE);
-            gfx_stripbuffer_draw_pixel(wx2 + 3, (wy - 3) - g_strip_y0, COLOR_WHITE);
-            break;
-    }
+    drive_draw_shadowed_text(tx, ty, text, scale);
 }
+
 
 void drive_screen_render(display_data_t *data) {
     const int car_x = 120;
@@ -253,6 +314,9 @@ void drive_screen_render(display_data_t *data) {
     const int car_scale = 3;
     const int car_top = car_y + 3 * car_scale;
     const int car_h = 13 * car_scale;
+
+    bool is_stopped = (data->state == DISPLAY_STATE_STOPPED);
+    bool is_interrupted = (data->state == DISPLAY_STATE_INTERRUPTED);
 
     if (data->screen != DISPLAY_SCREEN_DRIVE) {
         initialized = false;
@@ -268,12 +332,14 @@ void drive_screen_render(display_data_t *data) {
         cloud_offset = 0;
     }
 
-    wheel_phase = (uint8_t)((wheel_phase + 1) % 4);
-    smoke_phase = (uint8_t)((smoke_phase + 1) % 6);
+    if (!is_stopped && !is_interrupted) {
+        wheel_phase = (wheel_phase + 3) % 4;
+        smoke_phase = (smoke_phase + 4) % 6;
 
-    road_offset += 2;
-    hill_offset += 3;
-    cloud_offset += 2;
+        road_offset += 1;
+        hill_offset += 3;
+        cloud_offset += 1;
+    }
 
     for (int y0 = 0; y0 < TFT_HEIGHT; y0 += DRIVE_STRIP_H) {
         int h = DRIVE_STRIP_H;
@@ -290,16 +356,38 @@ void drive_screen_render(display_data_t *data) {
         drive_draw_road_motion_strip();
 
         if (strip_intersects_y(car_top, car_h)) {
-            drive_draw_smoke_buf(smoke_phase, car_x, car_y, car_scale);
 
-            car_widget_draw_to_buffer((uint16_t)car_x,
-                                      (uint16_t)car_y,
-                                      (uint8_t)car_scale,
-                                      COLOR_RED,
-                                      drive_strip_fill_rect,
-                                      drive_strip_fill_circle);
+            if (is_stopped || is_interrupted) {
+                car_widget_draw_stopped_to_buffer(
+                    (uint16_t)car_x,
+                    (uint16_t)car_y,
+                    (uint8_t)car_scale,
+                    data->selected_color_hex,
+                    drive_strip_fill_rect,
+                    drive_strip_fill_circle
+                );
+            } else {
+                car_widget_draw_moving_to_buffer(
+                    (uint16_t)car_x,
+                    (uint16_t)car_y,
+                    (uint8_t)car_scale,
+                    data->selected_color_hex,
+                    drive_strip_fill_rect,
+                    drive_strip_fill_circle,
+                    wheel_phase,
+                    smoke_phase
+                );
+            }
+        }
 
-            drive_draw_wheel_motion_buf(wheel_phase, car_x, car_y, car_scale);
+        drive_draw_status_text(data);
+
+        if (is_stopped) {
+            drive_draw_arrived_text();
+        }
+
+        if (is_interrupted) {
+            drive_draw_interrupted_text();
         }
 
         gfx_stripbuffer_present(y0, h);

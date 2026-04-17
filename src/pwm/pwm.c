@@ -19,6 +19,9 @@
 #define MOTORWRAP 31249 //combination for pwmF of 4kHz
 #define CLKDIV 1.0f
 
+static int motorStart = 0;
+static int motorstartDone = 0;
+
 
 //function for the initialization of the PWM pins needed
 void pwm_init(void)
@@ -82,6 +85,12 @@ void set_right_motor_speed(double speed)
 
     }
 
+    //for the motor start signal
+    if (speed != 0.0)
+    {
+        motorStart = 1;
+    }
+
     //for forward movement
     if (speed > 0.0)
     {
@@ -89,6 +98,7 @@ void set_right_motor_speed(double speed)
         gpio_put(BIN2PIN, 0);
 
         pwm_set_gpio_level(RIGHT_MOTOR_PIN, speed * MOTORWRAP);
+        
     }
     else if (speed < 0.0)
     {
@@ -96,6 +106,7 @@ void set_right_motor_speed(double speed)
         gpio_put(BIN2PIN, 1); //reverses
 
         pwm_set_gpio_level(RIGHT_MOTOR_PIN, -(speed) * MOTORWRAP);
+        
     }
     else //stays
     {
@@ -103,6 +114,7 @@ void set_right_motor_speed(double speed)
         gpio_put(BIN2PIN, 0);
 
         pwm_set_gpio_level(RIGHT_MOTOR_PIN, 0);
+        
     }
 }
 
@@ -120,6 +132,12 @@ void set_left_motor_speed(double speed)
 
     }
 
+    //start motor signal
+    if (speed != 0.0)
+    {
+        motorStart = 1;
+    }
+
     //for forward movement
     if (speed > 0.0)
     {
@@ -127,6 +145,7 @@ void set_left_motor_speed(double speed)
         gpio_put(AIN2PIN, 0);
 
         pwm_set_gpio_level(LEFT_MOTOR_PIN, speed * MOTORWRAP);
+        
     }
     else if (speed < 0.0)
     {
@@ -134,16 +153,31 @@ void set_left_motor_speed(double speed)
         gpio_put(AIN2PIN, 1); //reverses
 
         pwm_set_gpio_level(LEFT_MOTOR_PIN, -(speed) * MOTORWRAP);
+        
     }
     else //stays
     {
         gpio_put(AIN1PIN, 0);
         gpio_put(AIN2PIN, 0);
 
+        
         pwm_set_gpio_level(LEFT_MOTOR_PIN, 0);
+        
     }
 }
 
-//function for the servo control
+//function for on/off signal
+int areMotorsOn(void)
+{
+    if (motorStart && (!motorstartDone)) //if on, 1 && 1 = 1
+    //if off, 0 && 1 = 0
+    //if alr used, 1 && 0 = 0, only sends pulse 1 time
+    {
+        motorstartDone = 1;
+        return 1;
+    }
+
+    return 0;
+}
 
 //extra miscellaneous function

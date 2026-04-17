@@ -1,10 +1,16 @@
 #include <math.h>
 #include "hardware/timer.h"
-#include "i2c.c"
+#include "sensors/color_sensor.c"
+#include "sensors/distance_sensor.c"
 #include "display/display_spi.c"
+#include "include/display/display_types.h"
 
+void initialize_configure_timer();
+void configure_handler();
 void initialize_search_timer();
 void search_handler();
+void initialize_rotation();
+void stop_rotation_handler();
 void initialize_distance_check_timer();
 void distance_check_timer_handler();
 void initialize_display_update_timer();
@@ -15,8 +21,6 @@ void display_update_timer_handler();
 
 //The current angle that the servo with the color sensor is oriented at.
 int current_servo_angle = 0;
-//The current angle the robot is facing from -90 to 90 degrees from its starting orientation.
-int current_robot_angle = 0;
 
 //For the states the robot can be in
 #define CONFIGURE 0
@@ -26,7 +30,7 @@ int current_robot_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = CONFIGURE;
+int current_state = CONFIGURE; 
 
 //The colors the robot might search for
 #define RED 0
@@ -47,6 +51,9 @@ int robot_rotation_direction = LEFT;
 
 //The number of degrees the robot turns the servo with each search increment
 #define SEARCH_INCREMENT 1.0
+
+//The interval between checks for color being selected
+#define CONFIGURE_INTERVAL 0.02
 //The number of seconds the robot spends on each degree of search
 #define SEARCH_INTERVAL 0.02
 //The interval between checking distance while moving forward
@@ -61,24 +68,65 @@ int robot_rotation_direction = LEFT;
 Main function
 -----------------------------------------------------------------------------------*/
 
-void main() {
+int main() {
 
     //Initialize components
     pwm_init();
     display_init();
     init_i2c();
+    init_uart();
     init_color_sensor();
+    init_distance_sensor();
 
     //Start program logic
-    initialize_search_timer();
+    initialize_configure_timer();
 
+    //infinite loop
+    while(1) {}
+
+    return 0;
 }
 
 /*-----------------------------------------------------------------------------------
 Functions for CONFIGURE state
 -----------------------------------------------------------------------------------*/
 
+void initialize_configure_timer() {
 
+    //Enable interrupt for timer1 alarm1
+    timer1_hw->inte |= 2;  
+
+    //Set handler for interrupt to search_handler
+    irq_set_exclusive_handler(TIMER1_IRQ_1, configure_handler);
+
+    //Enable IRQ TIMER1_IRQ_1
+    irq_set_enabled(TIMER1_IRQ_1, 1);
+
+    //Set TIMER1 to fire alarm 1 after CONFIGURE_INTERVAL seconds
+    timer1_hw->alarm[1] = timer1_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
+
+}
+
+void configure_handler() {
+
+    //Acknowledge the interrupt
+    timer1_hw->intr |= 2ul;
+
+    if (data.start_requested) { //FROM DISPLAY?
+
+        target_color = data.selected_color; //FROM DISPLAY?
+        current_state = SEARCH;
+        timer1_hw->inte &= ~2;  //disable previous timer
+        initialize_search_timer();
+
+    } else {
+
+        //Arm timer again
+        timer1_hw->alarm[1] = timer1_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
+
+    }
+
+}
 
 /*-----------------------------------------------------------------------------------
 Functions for SEARCH state
@@ -110,7 +158,8 @@ void search_handler() {
 
         //go to ROTATE state
         current_state = ROTATE;
-        intialize_rotation(current_servo_angle);
+        timer0_hw->inte &= ~2;  //disable previous timer
+        initialize_rotation(current_servo_angle);
 
     } else {
 
@@ -160,15 +209,15 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 
     if (degrees < 0) {
 
-        set_left_motor_speed(); //to be implemented by pwm?
-        set_right_motor_speed();
+        set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); //to be implemented by pwm?
+        set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
 
     }
 
     else if (degrees > 0) {
 
-        set_left_motor_speed(); //to be implemented by pwm?
-        set_right_motor_speed();
+        set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); //to be implemented by pwm?
+        set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
 
     }
 
@@ -197,6 +246,7 @@ void stop_rotation_handler() {
 
     //Move to the next state
     current_state = FORWARD;
+    timer1_hw->inte &= ~1;  //disable previous timer
     initialize_distance_check_timer();
 
 }
@@ -228,17 +278,23 @@ void distance_check_timer_handler() {
 
     int distance_inches = get_distance_inches();
 
+    data.distance_in = distance_inches;
+
     if (distance_inches < 2.1) {
 
         //go to STOPPED state
         set_left_motor_speed(0); //to be implemented by pwm?
         set_right_motor_speed(0);
+        timer0_hw->inte &= ~4;  //disable previous timer
         current_state = STOPPED;
         initialize_display_update_timer();
 
     } else {
 
-        int motor_speed = MAX_MOTOR_SPEED * sqrt(distance_inches - 2);
+        double motor_speed = MAX_MOTOR_SPEED * 0.25 * sqrt(distance_inches - 2);
+        if (motor_speed > MAX_MOTOR_SPEED) {
+            motor_speed = MAX_MOTOR_SPEED;
+        }
         set_left_motor_speed(motor_speed); //to be implemented by pwm?
         set_right_motor_speed(motor_speed);
 

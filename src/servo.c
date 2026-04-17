@@ -14,17 +14,17 @@
 #define PULSE_MAX_US 2500 //90 degrees
 #define PULSE_MID_US 1500 //0 degrees
 
-//colors
-#define RED    0
-#define GREEN  1
-#define BLUE   2
-
 //track current servo position
 float curr_servo_angle = 0.0f;
-
 //PWM slice and channel for servo
 static uint servo_slice;
 static uint servo_chan;
+
+void servo_init(void);
+void servo_set_angle(float angle);
+void servo_move_by(float delta_degrees);
+float servo_get_current_angle(void);
+
 
 void servo_init(void)
 {
@@ -61,7 +61,6 @@ void servo_set_angle(float angle)
 
     //convert angle to pulse width (us)
     float pulse_us = PULSE_MID_US + (angle * 11.11f); //11.11 us per degree 
-
     //convert pulse width to PWM level
     uint16_t level = (uint16_t)((pulse_us / 20000.0f) * (SERVO_WRAP + 1));
 
@@ -76,60 +75,39 @@ void servo_move_by(float delta_degrees)
 }
 
 //scan for the specific color and return true if found
-bool servo_scan_for_color(int target_color) 
+bool servo_scan_for_color(int target_color)
 {
-    printf("Starting scan for color %d (0=Red, 1=Green, 2=Blue)...\n", target_color);
+    printf("Starting full scan for color %d...\n", target_color);
 
-    //sweep from -90 to +90 degrees
+    //sweep left to right
     for (float angle = -90.0f; angle <= 90.0f; angle += 3.0f) 
     {     
         servo_set_angle(angle);
-        sleep_ms(30); //small pause for servo to move and the sensor to stabilize.                                               
+        sleep_ms(30);
 
-        if(color_check(target_color)) 
+        if (color_check(target_color)) 
         { 
-            printf("\n TARGET COLOR FOUND \n");
-
-            printf("Color: %s\n", (target_color == RED) ? "RED" : 
-                                  (target_color == GREEN) ? "GREEN" : "BLUE");
-
-            printf("Angle: %.1f degrees\n", angle);
-
-            printf("Robot should rotate %.1f degrees to face target\n", angle);
-
-            //stop servo at current position
-            servo_set_angle(angle);
-            return(true);    
+            printf("\nTARGET COLOR FOUND at %.1f degrees\n", angle);
+            return true;
         }
-
     }
 
-    //sweep back from +90 to -90 degrees
-    for(float angle = 90.0f; angle >= -90.0f; angle -= 3.0f) 
+    //sweep right to left
+    for (float angle = 90.0f; angle >= -90.0f; angle -= 3.0f) 
     {
         servo_set_angle(angle);
         sleep_ms(30);
 
         if (color_check(target_color)) 
         {
-            printf("\n TARGET COLOR FOUND \n");
-
-            printf("Color: %s\n", (target_color == RED) ? "RED" : 
-                                  (target_color == GREEN) ? "GREEN" : "BLUE");
-
-            printf("Angle: %.1f degrees\n", angle);
-
-            printf("Robot should rotate %.1f degrees to face target\n", angle);
-
-            servo_set_angle(angle);
+            printf("\nTARGET COLOR FOUND at %.1f degrees\n", angle);
             return(true);
         }
 
     }
 
     printf("Scan completed - Target color not found\n");
-    servo_set_angle(0.0f); //return to center if nothing found
-    
+    servo_set_angle(0.0f);
     return(false);
 }
 

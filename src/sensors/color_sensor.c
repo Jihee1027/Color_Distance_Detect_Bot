@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "hardware/i2c.h"
+#include "i2c.h"
 
 #define I2C_SDA_GPIO 4
 #define I2C_SCL_GPIO 5
@@ -24,10 +24,11 @@ void init_i2c () {
     gpio_set_function(I2C_SDA_GPIO, GPIO_FUNC_I2C);
     gpio_set_function(I2C_SCL_GPIO, GPIO_FUNC_I2C);
 
+    //Necessary as described in datasheet
     gpio_pull_up(I2C_SDA_GPIO);
-    gpio_pull_up(I2C_SCL_GPIO);
-
-    //More things to configure? (schimitt trigger, limited slew rate)
+    gpio_pull_up(I2C_SCL_GPIO); //There will also be need of external pull-up resistors?
+    gpio_set_slew_rate(I2C_SDA_GPIO, GPIO_SLEW_RATE_SLOW);
+    gpio_set_slew_rate(I2C_SCL_GPIO, GPIO_SLEW_RATE_SLOW);
 
 }
 
@@ -68,49 +69,58 @@ void init_color_sensor () {
 
 }
 
-int color_check(int target_color) {
+//Will place the rgb values detected into those pointer values
+void get_rgb(int* red, int* green, int* blue) {
 
-    int colors[3] = {0, 0, 0}; //red, green, blue
+    *red = 0;
+    *green = 0;
+    *blue = 0;
 
-    colors[0] |= read_i2c_register(LS_DATA_RED);
-    colors[0] |= read_i2c_register(LS_DATA_RED + 1) << 8;
-    colors[0] |= read_i2c_register(LS_DATA_RED + 2) << 16;
+    *red |= read_i2c_register(LS_DATA_RED);
+    *red |= read_i2c_register(LS_DATA_RED + 1) << 8;
+    *red |= read_i2c_register(LS_DATA_RED + 2) << 16;
 
-    colors[1] |= read_i2c_register(LS_DATA_GREEN);
-    colors[1] |= read_i2c_register(LS_DATA_GREEN + 1) << 8;
-    colors[1] |= read_i2c_register(LS_DATA_GREEN + 2) << 16;
+    *green |= read_i2c_register(LS_DATA_GREEN);
+    *green |= read_i2c_register(LS_DATA_GREEN + 1) << 8;
+    *green |= read_i2c_register(LS_DATA_GREEN + 2) << 16;
 
-    colors[2] |= read_i2c_register(LS_DATA_BLUE);
-    colors[2] |= read_i2c_register(LS_DATA_BLUE + 1) << 8;
-    colors[2] |= read_i2c_register(LS_DATA_BLUE + 2) << 16;
+    *blue |= read_i2c_register(LS_DATA_BLUE);
+    *blue |= read_i2c_register(LS_DATA_BLUE + 1) << 8;
+    *blue |= read_i2c_register(LS_DATA_BLUE + 2) << 16;
 
     //Scale the colors from 18 bits to the [0, 255] range
-    colors[0] >>= 10;
-    colors[1] >>= 10;
-    colors[2] >>= 10;
+    *red >>= 10;
+    *green >>= 10;
+    *blue >>= 10;
+
+}
+
+//0 = red, 1 = green, 2 = blue, -1 = none of those detected
+int get_color() {
+
+    int colors[3]; //red, green, blue
+
+    get_rgb(&(colors[0]), &(colors[1]), &(colors[2]));
 
     //The target color is matched if it has at least intensity 80 and is at least 50 greater than the other two colors
-    if (colors[target_color] >= 80 && 
-        colors[target_color] >= max(colors[(target_color + 1) % 3], colors[(target_color + 2) % 3])) {
+    for (int i = 0; i <=2; i++) {
 
-        return true;
+        if (colors[i] >= 80 && 
+            colors[i] >= colors[(i + 1) % 3] + 50 &&
+            colors[i] >= colors[(i + 2) % 3] + 50) {
+
+            return i;
+        }
+
     }
 
-    return false;
+    return -1;
 
 }
 
-/*-----------------------------------------------------------------------------------
-Distance sensor code (but actually it might use UART?)
------------------------------------------------------------------------------------*/
+//checks if detected color matches target color
+int color_check(int target_color) {
 
-void init_distance_sensor () {
-
-    
-
-}
-
-int get_distance_inches() {
-
+    return get_color() == target_color;
 
 }

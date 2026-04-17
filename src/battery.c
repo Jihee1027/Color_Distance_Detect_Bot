@@ -2,7 +2,7 @@
 #include "pico/stdlib.h"
 #include <stdio.h>
 
-#define BATTERY_ADC_PIN 26
+#define BATTERY_ADC_PIN 26 //change if needed
 #define VOLTAGE_DIVIDER_RATIO 2.0f
 #define ADC_REF_VOLTAGE 3.3f
 #define ADC_SAMPLES 32
@@ -57,12 +57,35 @@ void battery_print_status(void)
 
     float percentage = 0.0f;
 
-    if (voltage >= 4.20f)      percentage = 100.0f;
-    else if (voltage >= 4.00f) percentage = 90.0f + (voltage - 4.00f) * 50.0f;   // steep near full
-    else if (voltage >= 3.70f) percentage = 40.0f + (voltage - 3.70f) * 100.0f;  // around nominal
-    else if (voltage >= 3.40f) percentage = (voltage - 3.40f) * 133.0f;          // lower knee
-    else if (voltage >= 3.00f) percentage = (voltage - 3.00f) * 30.0f;           // very low
-    else                       percentage = 0.0f;
+    if (voltage >= 4.20f) 
+    {
+        percentage = 100.0f;
+    }
+        
+    else if (voltage >= 4.00f) 
+    {
+        percentage = 90.0f + (voltage - 4.00f) * 50.0f; //steep near full
+    }
+        
+    else if (voltage >= 3.70f)
+    { 
+        percentage = 40.0f + (voltage - 3.70f) * 100.0f; // around nominal
+    }
+        
+    else if(voltage >= 3.40f) 
+    {
+        percentage = (voltage - 3.40f) * 133.0f; // lower knee
+    }
+    
+    else if(voltage >= 3.00f)
+    {
+        percentage = (voltage - 3.00f) * 30.0f; // very low
+    }
+        
+    else                       
+    {
+        percentage = 0.0f;
+    }
 
     if(percentage > 100.0f)
     {

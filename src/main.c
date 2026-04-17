@@ -2,8 +2,11 @@
 #include "hardware/timer.h"
 #include "sensors/color_sensor.c"
 #include "sensors/distance_sensor.c"
-#include "display/display_spi.c"
-#include "include/display/display_types.h"
+#include "display/display.h"
+#include "display/display_button.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include "pico/stdlib.h"
 
 void initialize_configure_timer();
 void configure_handler();
@@ -78,8 +81,28 @@ int main() {
     init_color_sensor();
     init_distance_sensor();
 
+    //Display Data
+    display_init();
+    display_button_init();
+    display_data_t data = {
+        .screen = DISPLAY_SCREEN_START,
+        .distance_in = 0.0f,
+        .total_distance_in = 10.0f,
+        .battery_v = 7.8f,
+        .color_name = "",
+        .state = DISPLAY_STATE_MOVING,
+        .selected_color = DISPLAY_COLOR_NONE,
+        .selected_color_hex = 0x0000,
+        .start_requested = false,
+        .color_locked = false,
+        .loading_stage = DISPLAY_LOADING_STAGE_SEARCH_COLOR,
+        .color_found_pulse = false,
+        .distance_done_pulse = false
+    };
+
     //Start program logic
     initialize_configure_timer();
+
 
     //infinite loop
     while(1) {}

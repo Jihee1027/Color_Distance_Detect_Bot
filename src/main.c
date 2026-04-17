@@ -3,6 +3,7 @@
 #include "sensors/color_sensor.c"
 #include "sensors/distance_sensor.c"
 #include "display/display_spi.c"
+#include "pwm/pwm.c"
 #include "include/display/display_types.h"
 
 void initialize_configure_timer();

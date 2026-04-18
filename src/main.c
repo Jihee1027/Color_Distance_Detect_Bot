@@ -1,10 +1,13 @@
 #include <math.h>
+#include "pico/stdlib.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include "timer.h"
-#include "sensors/color_sensor.c"
-#include "sensors/distance_sensor.c"
+#include "pwm/pwm.h"
+#include "servo.h"
+#include "sensors/color_sensor.h"
+#include "sensors/distance_sensor.h"
 #include "display/display.h"
 #include "display/display_button.h"
 
@@ -34,6 +37,8 @@ void initialize_distance_check_timer();
 void distance_check_timer_handler();
 void initialize_display_update_timer();
 void display_update_timer_handler();
+void interrupt_handler();
+int get_state();
 
 //The number of seconds the robot takes to turn 180 degrees. Determined experimentally
 #define seconds_rotate_180 5.0
@@ -49,7 +54,7 @@ int current_servo_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = CONFIGURE; 
+int current_state = SEARCH; //TEMPORARILY SET TO SEARCH FOR TESTING PURPOSES 
 
 //The colors the robot might search for
 #define RED 0
@@ -74,7 +79,7 @@ int robot_rotation_direction = LEFT;
 //The interval between checks for color being selected
 #define CONFIGURE_INTERVAL 0.02
 //The number of seconds the robot spends on each degree of search
-#define SEARCH_INTERVAL 0.02
+#define SEARCH_INTERVAL 1 //CHANGE THIS BACK LATER
 //The interval between checking distance while moving forward
 #define FORWARD_INTERVAL 0.1
 //The interval between updates of the display
@@ -82,13 +87,6 @@ int robot_rotation_direction = LEFT;
 
 //The maximum motor speed the robot will use
 #define MAX_MOTOR_SPEED 1.0
-
-typedef enum {
-    DISPLAY_STATE_SEARCHING = 0,
-    DISPLAY_STATE_MOVING,
-    DISPLAY_STATE_STOPPED,
-    DISPLAY_STATE_INTERRUPTED
-} display_state_t;
 
 //global display data variable
 display_data_t data = {
@@ -113,19 +111,31 @@ Main function
 
 int main() {
 
+    stdio_init_all();
+
+    printf("\nMAIN IS RUNNING\n");
+
     //Initialize components
-    pwm_init();
+    init_pwm();
     display_init();
     init_i2c();
     init_color_sensor();
+    calibrate_colors();
     init_distance_gpio();
 
     //Display Data
     display_init();
     display_button_init();
 
+    //Set interrupt handler
+    irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
+
     //Start program logic
-    initialize_configure_timer();
+    if (current_state == CONFIGURE) {
+        initialize_configure_timer();
+    } else {
+        initialize_search_timer();
+    }
 
     //infinite loop
     while(1) {}
@@ -142,9 +152,6 @@ void initialize_configure_timer() {
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;  
 
-    //Set handler for interrupt to search_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, configure_handler);
-
     //Enable IRQ TIMER0_IRQ_0
     irq_set_enabled(TIMER0_IRQ_0, 1);
 
@@ -155,8 +162,6 @@ void initialize_configure_timer() {
 
 void configure_handler() {
 
-    //Acknowledge the interrupt
-    timer0_hw->intr |= 1ul;
 
     if (data.start_requested) { 
 
@@ -183,21 +188,17 @@ void initialize_search_timer() {
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;  
 
-    //Set handler for interrupt to search_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, search_handler);
-
     //Enable IRQ TIMER0_IRQ_0
     irq_set_enabled(TIMER0_IRQ_0, 1);
 
     //Set TIMER0 to fire alarm 1 after SEARCH_INTERVAL seconds
     timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
 
+    printf("\nEnd of initialize search timer reached\n");
+
 }
 
 void search_handler() {
-
-    //Acknowledge the interrupt
-    timer0_hw->intr |= 1ul;
 
     //check color
     if (color_check(target_color)) {
@@ -233,7 +234,7 @@ void search_handler() {
 
             }
 
-            move_servo(degrees_to_turn); //IMPLEMENTED BY PWM?
+            servo_set_angle(degrees_to_turn); 
             current_servo_angle += degrees_to_turn;
 
         }
@@ -251,7 +252,7 @@ Functions for ROTATE state
 
 void initialize_rotation(int degrees /*from -90 to 90*/) {
 
-    double seconds_rotate = abs(degrees) * seconds_rotate_180 / 180.0;
+    double seconds_rotate = fabs(degrees) * seconds_rotate_180 / 180.0;
 
     if (degrees < 0) {
 
@@ -270,9 +271,6 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;  
 
-    //Set handler for interrupt to stop_rotation_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, stop_rotation_handler);
-
     //Enable IRQ TIMER0_IRQ_0
     irq_set_enabled(TIMER0_IRQ_0, 1);
 
@@ -282,9 +280,6 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 }
 
 void stop_rotation_handler() {
-
-    //Acknowledge the interrupt
-    timer0_hw->intr |= 1ul;
 
     //Stop rotation
     set_left_motor_speed(0); //to be implemented by pwm?
@@ -306,9 +301,6 @@ void initialize_distance_check_timer() {
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;
 
-    //Set handler for interrupt to distance_check_timer_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, distance_check_timer_handler);
-
     //Enable IRQ TIMER0_IRQ_0
     irq_set_enabled(TIMER0_IRQ_0, 1);
 
@@ -318,9 +310,6 @@ void initialize_distance_check_timer() {
 }
 
 void distance_check_timer_handler() {
-
-    //Acknowledge the interrupt
-    timer0_hw->intr |= 1ul;
 
     send_pulse();
     int distance_inches = get_distance_inches();
@@ -361,9 +350,6 @@ void initialize_display_update_timer() {
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;
 
-    //Set handler for interrupt to display_update_timer_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, display_update_timer_handler);
-
     //Enable IRQ TIMER0_IRQ_0
     irq_set_enabled(TIMER0_IRQ_0, 1);
 
@@ -374,9 +360,6 @@ void initialize_display_update_timer() {
 
 void display_update_timer_handler() {
 
-    //Acknowledge the interrupt
-    timer0_hw->intr |= 1ul;
-
     //Update display
     //display_update(); //NEED PARAMETER FOR THIS?
 
@@ -385,6 +368,21 @@ void display_update_timer_handler() {
 /*-----------------------------------------------------------------------------------
 Other functions
 -----------------------------------------------------------------------------------*/
+
+void interrupt_handler() {
+
+    //acknoweldge interrupt
+    timer0_hw->intr |= 1u;
+
+    switch (current_state) {
+        case CONFIGURE: configure_handler(); break;
+        case SEARCH: search_handler(); break;
+        case ROTATE: stop_rotation_handler(); break;
+        case FORWARD: distance_check_timer_handler(); break;
+        case STOPPED: display_update_timer_handler(); break;
+    }
+
+}
 
 int get_state() {
 

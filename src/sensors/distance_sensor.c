@@ -1,3 +1,4 @@
+#include "pico/stdlib.h"
 #include "io_bank0.h"
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
@@ -16,8 +17,10 @@ volatile int mid_echo = 0;
 
 void init_distance_gpio();
 void send_pulse();
+void pulse_end();
 void init_echo_gpio_irq();
 void echo_gpio_isr();
+double get_distance_inches();
 
 /*-----------------------------------------------------------------------------------
 Distance sensor code 
@@ -35,12 +38,35 @@ void init_distance_gpio() {
 
 }
 
-//Send a 10us pulse
-void send_pulse() {
+//Send a 10us pulse 
+void send_pulse() { 
+    
+    //Enable interrupt for timer0 alarm1 
+    timer0_hw->inte |= 2; 
 
-    gpio_put(TRIG_GPIO, 1);
-    sleep_us(10);
-    gpio_put(TRIG_GPIO, 0);
+    //Set handler for interrupt to pulse_end 
+    irq_set_exclusive_handler(TIMER0_IRQ_1, pulse_end); 
+
+    //Enable IRQ TIMER0_IRQ_1 
+    irq_set_enabled(TIMER0_IRQ_1, 1); 
+
+    //Set TIMER0 to fire alarm 1 after 10us 
+    timer0_hw->alarm[1] = timer0_hw->timerawl + 10; 
+
+    //Start the pulse 
+    gpio_put(TRIG_GPIO, 1); 
+} 
+
+void pulse_end() { 
+
+    //Acknowledge the interrupt 
+    timer0_hw->intr |= 2ul; 
+
+    //disable previous timer 
+    timer0_hw->inte &= ~2; 
+
+    //End the pulse 
+    gpio_put(TRIG_GPIO, 0); 
 
 }
 

@@ -1,7 +1,7 @@
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
-#include "i2c.c"
+#include "sensors/color_sensor.h"
 
 #define SERVO_PIN 39
 

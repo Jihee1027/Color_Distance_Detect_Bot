@@ -17,7 +17,19 @@
 #define GREEN 1
 #define BLUE 2
 
-void init_i2c () {
+//Amounts of colors detected with baseline room lighting
+int color_baselines[3];
+
+void init_i2c();
+uint8_t read_i2c_register(uint8_t address);
+void write_i2c_register(uint8_t address, uint8_t value);
+void init_color_sensor();
+void calibrate_colors();
+void get_rgb(int* red, int* green, int* blue);
+int get_color();
+int color_check(int target_color);
+
+void init_i2c() {
 
     i2c_init(i2c0, 115200); //The datasheet for the color sensor says to use this baudrate
 
@@ -65,7 +77,30 @@ Color sensor code
 void init_color_sensor () {
 
     //Enable bit 2 of MAIN_CTRL to turn on RGB mode
-    write_i2c_register(MAIN_CTRL, 0b00000100);
+    //Enable bit 1 to turn on light sensor
+    write_i2c_register(MAIN_CTRL, 0b00000110);
+
+}
+
+void calibrate_colors() {
+
+    int color_read[3];
+    int color_totals[3] = {0, 0, 0};
+
+    for (int i = 0; i < 50; i++) {
+        get_rgb(&(color_read[0]), &(color_read[1]), &(color_read[2]));
+        for (int j = 0; j <= 2; j++) {
+            color_totals[j] += color_read[j];
+        }
+    }
+
+    for (int i = 0; i <= 2; i++) {
+
+        color_baselines[i] = color_totals[i] / 50;
+
+    }
+
+    printf("\ncolors calibrated!\n");
 
 }
 
@@ -88,10 +123,7 @@ void get_rgb(int* red, int* green, int* blue) {
     *blue |= read_i2c_register(LS_DATA_BLUE + 1) << 8;
     *blue |= read_i2c_register(LS_DATA_BLUE + 2) << 16;
 
-    //Scale the colors from 18 bits to the [0, 255] range
-    *red >>= 10;
-    *green >>= 10;
-    *blue >>= 10;
+    //printf("\n--------\nred: %d\ngreen: %d\nblue: %d\n--------\n", *red, *green, *blue);
 
 }
 
@@ -99,15 +131,21 @@ void get_rgb(int* red, int* green, int* blue) {
 int get_color() {
 
     int colors[3]; //red, green, blue
+    double color_ratios[3];
 
     get_rgb(&(colors[0]), &(colors[1]), &(colors[2]));
 
-    //The target color is matched if it has at least intensity 80 and is at least 50 greater than the other two colors
+    for (int i = 0; i <= 2; i++) {
+        color_ratios[i] = (double)(colors[i]) / (double)(color_baselines[i]);
+    }
+
+    printf("\n--------\nred: %f\ngreen: %f\nblue: %f\n--------\n", color_ratios[0], color_ratios[1], color_ratios[2]);
+
     for (int i = 0; i <=2; i++) {
 
-        if (colors[i] >= 80 && 
-            colors[i] >= colors[(i + 1) % 3] + 50 &&
-            colors[i] >= colors[(i + 2) % 3] + 50) {
+        if (color_ratios[i] >= 1.15 && 
+            color_ratios[i] / color_ratios[(i + 1) % 3] >= 1.05 &&
+            color_ratios[i] / color_ratios[(i + 2) % 3] >= 1.05) {
 
             return i;
         }
@@ -121,6 +159,8 @@ int get_color() {
 //checks if detected color matches target color
 int color_check(int target_color) {
 
+    int color = get_color();
+    printf("%d\n", color);
     return get_color() == target_color;
 
 }

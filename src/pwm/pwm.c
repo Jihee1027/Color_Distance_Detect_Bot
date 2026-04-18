@@ -22,9 +22,13 @@
 static int motorStart = 0;
 static int motorstartDone = 0;
 
+void init_pwm(void);
+void set_right_motor_speed(double speed);
+void set_left_motor_speed(double speed);
+int areMotorsOn(void);
 
 //function for the initialization of the PWM pins needed
-void pwm_init(void)
+void init_pwm(void)
 {
     gpio_set_function(LEFT_MOTOR_PIN, GPIO_FUNC_PWM);
     gpio_set_function(RIGHT_MOTOR_PIN, GPIO_FUNC_PWM);

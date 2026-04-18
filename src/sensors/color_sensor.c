@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "include/i2c.h"
+#include "hardware/i2c.h"
 
 #define I2C_SDA_GPIO 4
 #define I2C_SCL_GPIO 5

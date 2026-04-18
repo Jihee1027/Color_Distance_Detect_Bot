@@ -8,11 +8,27 @@
 #include "display/display.h"
 #include "display/display_button.h"
 
+/*
+TIMER USAGE
+
+Timer0
+    Alarm0: Configure, Search (color check), Rotation, Distance check, Display check
+    Alarm1: Distance sensor pulse sending
+    Alarm2: Distance sensor echo measuring
+    Alarm3: 
+Timer1
+    Alarm0: 
+    Alarm1: 
+    Alarm2: 
+    Alarm3: 
+
+*/
+
 void initialize_configure_timer();
 void configure_handler();
 void initialize_search_timer();
 void search_handler();
-void initialize_rotation();
+void initialize_rotation(int degrees);
 void stop_rotation_handler();
 void initialize_distance_check_timer();
 void distance_check_timer_handler();
@@ -60,7 +76,7 @@ int robot_rotation_direction = LEFT;
 //The number of seconds the robot spends on each degree of search
 #define SEARCH_INTERVAL 0.02
 //The interval between checking distance while moving forward
-#define FORWARD_INTERVAL 0.02
+#define FORWARD_INTERVAL 0.1
 //The interval between updates of the display
 #define DISPLAY_REFRESH_INTERVAL 0.01
 
@@ -101,9 +117,8 @@ int main() {
     pwm_init();
     display_init();
     init_i2c();
-    init_uart();
     init_color_sensor();
-    init_distance_sensor();
+    init_distance_gpio();
 
     //Display Data
     display_init();
@@ -124,36 +139,36 @@ Functions for CONFIGURE state
 
 void initialize_configure_timer() {
 
-    //Enable interrupt for timer1 alarm1
-    timer1_hw->inte |= 2;  
+    //Enable interrupt for timer0 alarm0
+    timer0_hw->inte |= 1;  
 
     //Set handler for interrupt to search_handler
-    irq_set_exclusive_handler(TIMER1_IRQ_1, configure_handler);
+    irq_set_exclusive_handler(TIMER0_IRQ_0, configure_handler);
 
-    //Enable IRQ TIMER1_IRQ_1
-    irq_set_enabled(TIMER1_IRQ_1, 1);
+    //Enable IRQ TIMER0_IRQ_0
+    irq_set_enabled(TIMER0_IRQ_0, 1);
 
-    //Set TIMER1 to fire alarm 1 after CONFIGURE_INTERVAL seconds
-    timer1_hw->alarm[1] = timer1_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
+    //Set TIMER0 to fire alarm 0 after CONFIGURE_INTERVAL seconds
+    timer0_hw->alarm[0] = timer0_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
 
 }
 
 void configure_handler() {
 
     //Acknowledge the interrupt
-    timer1_hw->intr |= 2ul;
+    timer0_hw->intr |= 1ul;
 
-    if (data.start_requested) { //FROM DISPLAY?
+    if (data.start_requested) { 
 
-        target_color = data.selected_color; //FROM DISPLAY?
+        target_color = data.selected_color; 
         current_state = SEARCH;
-        timer1_hw->inte &= ~2;  //disable previous timer
+        timer0_hw->inte &= ~1;  //disable previous timer
         initialize_search_timer();
 
     } else {
 
         //Arm timer again
-        timer1_hw->alarm[1] = timer1_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
+        timer0_hw->alarm[0] = timer0_hw->timerawl + (CONFIGURE_INTERVAL * 1000000);
 
     }
 
@@ -165,31 +180,31 @@ Functions for SEARCH state
 
 void initialize_search_timer() {
 
-    //Enable interrupt for timer0 alarm1
-    timer0_hw->inte |= 2;  
+    //Enable interrupt for timer0 alarm0
+    timer0_hw->inte |= 1;  
 
     //Set handler for interrupt to search_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_1, search_handler);
+    irq_set_exclusive_handler(TIMER0_IRQ_0, search_handler);
 
-    //Enable IRQ TIMER0_IRQ_1
-    irq_set_enabled(TIMER0_IRQ_1, 1);
+    //Enable IRQ TIMER0_IRQ_0
+    irq_set_enabled(TIMER0_IRQ_0, 1);
 
     //Set TIMER0 to fire alarm 1 after SEARCH_INTERVAL seconds
-    timer0_hw->alarm[1] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
+    timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
 
 }
 
 void search_handler() {
 
     //Acknowledge the interrupt
-    timer0_hw->intr |= 2ul;
+    timer0_hw->intr |= 1ul;
 
     //check color
     if (color_check(target_color)) {
 
         //go to ROTATE state
         current_state = ROTATE;
-        timer0_hw->inte &= ~2;  //disable previous timer
+        timer0_hw->inte &= ~1;  //disable previous timer
         initialize_rotation(current_servo_angle);
 
     } else {
@@ -224,7 +239,7 @@ void search_handler() {
         }
 
         //Arm timer again
-        timer0_hw->alarm[1] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
+        timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
 
     }
 
@@ -252,24 +267,24 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 
     }
 
-    //Enable interrupt for timer1 alarm0
-    timer1_hw->inte |= 1;  
+    //Enable interrupt for timer0 alarm0
+    timer0_hw->inte |= 1;  
 
     //Set handler for interrupt to stop_rotation_handler
-    irq_set_exclusive_handler(TIMER1_IRQ_0, stop_rotation_handler);
+    irq_set_exclusive_handler(TIMER0_IRQ_0, stop_rotation_handler);
 
-    //Enable IRQ TIMER1_IRQ_0
-    irq_set_enabled(TIMER1_IRQ_0, 1);
+    //Enable IRQ TIMER0_IRQ_0
+    irq_set_enabled(TIMER0_IRQ_0, 1);
 
-    //Set TIMER1 to fire alarm 0 after (seconds_rotate) seconds
-    timer1_hw->alarm[0] = timer1_hw->timerawl + (seconds_rotate * 1000000);
+    //Set TIMER0 to fire alarm 0 after (seconds_rotate) seconds
+    timer0_hw->alarm[0] = timer0_hw->timerawl + (seconds_rotate * 1000000);
 
 }
 
 void stop_rotation_handler() {
 
     //Acknowledge the interrupt
-    timer1_hw->intr |= 1ul;
+    timer0_hw->intr |= 1ul;
 
     //Stop rotation
     set_left_motor_speed(0); //to be implemented by pwm?
@@ -277,7 +292,7 @@ void stop_rotation_handler() {
 
     //Move to the next state
     current_state = FORWARD;
-    timer1_hw->inte &= ~1;  //disable previous timer
+    timer0_hw->inte &= ~1;  //disable previous timer
     initialize_distance_check_timer();
 
 }
@@ -288,25 +303,26 @@ Functions for FORWARD state
 
 void initialize_distance_check_timer() {
 
-    //Enable interrupt for timer0 alarm2
-    timer0_hw->inte |= 4;
+    //Enable interrupt for timer0 alarm0
+    timer0_hw->inte |= 1;
 
     //Set handler for interrupt to distance_check_timer_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_2, distance_check_timer_handler);
+    irq_set_exclusive_handler(TIMER0_IRQ_0, distance_check_timer_handler);
 
-    //Enable IRQ TIMER0_IRQ_2
-    irq_set_enabled(TIMER0_IRQ_2, 1);
+    //Enable IRQ TIMER0_IRQ_0
+    irq_set_enabled(TIMER0_IRQ_0, 1);
 
-    //Set TIMER0 to fire alarm 2 after FORWARD_INTERVAL seconds
-    timer0_hw->alarm[2] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+    //Set TIMER0 to fire alarm 0 after FORWARD_INTERVAL seconds
+    timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
 
 }
 
 void distance_check_timer_handler() {
 
     //Acknowledge the interrupt
-    timer0_hw->intr |= 4ul;
+    timer0_hw->intr |= 1ul;
 
+    send_pulse();
     int distance_inches = get_distance_inches();
 
     data.distance_in = distance_inches;
@@ -316,7 +332,7 @@ void distance_check_timer_handler() {
         //go to STOPPED state
         set_left_motor_speed(0); //to be implemented by pwm?
         set_right_motor_speed(0);
-        timer0_hw->inte &= ~4;  //disable previous timer
+        timer0_hw->inte &= ~1;  //disable previous timer
         current_state = STOPPED;
         initialize_display_update_timer();
 
@@ -330,7 +346,7 @@ void distance_check_timer_handler() {
         set_right_motor_speed(motor_speed);
 
         //Arm timer again
-        timer0_hw->alarm[2] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+        timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
 
     }
 
@@ -342,24 +358,24 @@ Functions for STOPPED state
 
 void initialize_display_update_timer() {
 
-    //Enable interrupt for timer0 alarm3
-    timer0_hw->inte |= 8;
+    //Enable interrupt for timer0 alarm0
+    timer0_hw->inte |= 1;
 
     //Set handler for interrupt to display_update_timer_handler
-    irq_set_exclusive_handler(TIMER0_IRQ_3, display_update_timer_handler);
+    irq_set_exclusive_handler(TIMER0_IRQ_0, display_update_timer_handler);
 
-    //Enable IRQ TIMER0_IRQ_3
-    irq_set_enabled(TIMER0_IRQ_3, 1);
+    //Enable IRQ TIMER0_IRQ_0
+    irq_set_enabled(TIMER0_IRQ_0, 1);
 
     //Set TIMER0 to fire alarm 3 after DISPLAY_REFRESH_INTERVAL seconds
-    timer0_hw->alarm[3] = timer0_hw->timerawl + (DISPLAY_REFRESH_INTERVAL * 1000000);
+    timer0_hw->alarm[0] = timer0_hw->timerawl + (DISPLAY_REFRESH_INTERVAL * 1000000);
 
 }
 
 void display_update_timer_handler() {
 
     //Acknowledge the interrupt
-    timer0_hw->intr |= 8ul;
+    timer0_hw->intr |= 1ul;
 
     //Update display
     //display_update(); //NEED PARAMETER FOR THIS?

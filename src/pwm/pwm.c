@@ -64,8 +64,8 @@ void init_pwm(void)
     pwm_set_wrap(left_slice, MOTORWRAP);
     pwm_set_wrap(right_slice, MOTORWRAP);
 
-//     pwm_set_enabled(left_slice, true);
-//     pwm_set_enabled(right_slice, true);
+    pwm_set_enabled(left_slice, true);
+    pwm_set_enabled(right_slice, true);
 
     //setting the initial state - stationary
     set_right_motor_speed(0.0);

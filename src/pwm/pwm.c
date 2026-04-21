@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
-#include "pwm.h"
+//#include "pwm.h"
 
 #define LEFT_MOTOR_PIN 37 //pwmA motor driver
 #define RIGHT_MOTOR_PIN 38 //pwmB motor driver
@@ -22,13 +22,11 @@
 static int motorStart = 0;
 static int motorstartDone = 0;
 
-void init_pwm(void);
-void set_right_motor_speed(double speed);
-void set_left_motor_speed(double speed);
-int areMotorsOn(void);
+
+
 
 //function for the initialization of the PWM pins needed
-void init_pwm(void)
+void motorpwm_init(void)
 {
     gpio_set_function(LEFT_MOTOR_PIN, GPIO_FUNC_PWM);
     gpio_set_function(RIGHT_MOTOR_PIN, GPIO_FUNC_PWM);
@@ -76,7 +74,7 @@ void init_pwm(void)
 }
 
 //function for setting the right motor speed
-void set_right_motor_speed(double speed)
+void set_right_motor_speed(float speed)
 {
     if (speed > 1.0)
     {
@@ -123,7 +121,7 @@ void set_right_motor_speed(double speed)
 }
 
 //function for setting the left motor speed
-void set_left_motor_speed(double speed)
+void set_left_motor_speed(float speed)
 {
     if (speed > 1.0)
     {

@@ -356,12 +356,12 @@ void distance_check_timer_handler() {
 
     } else {
 
-        double motor_speed = MAX_MOTOR_SPEED * 0.25 * sqrt(distance_inches - 2);
+        float motor_speed = float(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
         if (motor_speed > MAX_MOTOR_SPEED) {
             motor_speed = MAX_MOTOR_SPEED;
         }
         set_left_motor_speed(motor_speed); 
-        set_right_motor_speed(motor_speed);
+        set_right_motor_speed(-motor_speed);
 
         //Arm timer again
         timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);

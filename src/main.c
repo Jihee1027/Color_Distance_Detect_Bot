@@ -54,7 +54,7 @@ int current_servo_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = SEARCH; //TEMPORARILY SET TO SEARCH FOR TESTING PURPOSES 
+int current_state = FORWARD; //TEMPORARILY SET TO FORWARD FOR TESTING PURPOSES 
 
 //The colors the robot might search for
 #define RED 0
@@ -79,14 +79,17 @@ int robot_rotation_direction = LEFT;
 //The interval between checks for color being selected
 #define CONFIGURE_INTERVAL 0.02
 //The number of seconds the robot spends on each degree of search
-#define SEARCH_INTERVAL 1 //CHANGE THIS BACK LATER
+#define SEARCH_INTERVAL 0.01
 //The interval between checking distance while moving forward
-#define FORWARD_INTERVAL 0.1
+#define FORWARD_INTERVAL 1 //CHANGE THIS BACK TO 0.1 LATER
 //The interval between updates of the display
 #define DISPLAY_REFRESH_INTERVAL 0.01
 
 //The maximum motor speed the robot will use
 #define MAX_MOTOR_SPEED 1.0
+
+//for handling a certain problem with the distance check timing
+int first_distance_check = true;
 
 //global display data variable
 display_data_t data = {
@@ -120,7 +123,6 @@ int main() {
     display_init();
     init_i2c();
     init_color_sensor();
-    calibrate_colors();
     init_distance_gpio();
 
     //Display Data
@@ -131,10 +133,27 @@ int main() {
     irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
 
     //Start program logic
-    if (current_state == CONFIGURE) {
-        initialize_configure_timer();
-    } else {
-        initialize_search_timer();
+    switch (current_state) {
+        case CONFIGURE: {
+            initialize_configure_timer();
+            break;
+        }
+        case SEARCH: {
+            initialize_search_timer();
+            break;
+        }
+        case ROTATE: {
+            initialize_rotation(0); //can change argument for debugging purposes
+            break;
+        }
+        case FORWARD: {
+            initialize_distance_check_timer();
+            break;
+        }
+        case STOPPED: {
+            initialize_display_update_timer();
+            break;
+        }
     }
 
     //infinite loop
@@ -185,6 +204,8 @@ Functions for SEARCH state
 
 void initialize_search_timer() {
 
+    calibrate_colors();
+
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;  
 
@@ -193,8 +214,6 @@ void initialize_search_timer() {
 
     //Set TIMER0 to fire alarm 1 after SEARCH_INTERVAL seconds
     timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
-
-    printf("\nEnd of initialize search timer reached\n");
 
 }
 
@@ -298,6 +317,8 @@ Functions for FORWARD state
 
 void initialize_distance_check_timer() {
 
+    init_echo_gpio_irq();
+
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;
 
@@ -312,14 +333,22 @@ void initialize_distance_check_timer() {
 void distance_check_timer_handler() {
 
     send_pulse();
-    int distance_inches = get_distance_inches();
+    double distance_inches = get_distance_inches();
 
     data.distance_in = distance_inches;
+
+    //To prevent complications from how on the first check distance_inches will probably be 0
+    if (first_distance_check) {
+        first_distance_check = false;
+        //Arm timer again
+        timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+        return;
+    }
 
     if (distance_inches < 2.1) {
 
         //go to STOPPED state
-        set_left_motor_speed(0); //to be implemented by pwm?
+        set_left_motor_speed(0); 
         set_right_motor_speed(0);
         timer0_hw->inte &= ~1;  //disable previous timer
         current_state = STOPPED;
@@ -331,7 +360,7 @@ void distance_check_timer_handler() {
         if (motor_speed > MAX_MOTOR_SPEED) {
             motor_speed = MAX_MOTOR_SPEED;
         }
-        set_left_motor_speed(motor_speed); //to be implemented by pwm?
+        set_left_motor_speed(motor_speed); 
         set_right_motor_speed(motor_speed);
 
         //Arm timer again

@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <stdio.h>
 #include "pico/stdlib.h"
 #include "io_bank0.h"
 #include "hardware/gpio.h"
@@ -119,11 +121,14 @@ double get_distance_inches() {
     //timeout detection
     if (mid_echo && (time_us_32() - echo_start_time) > 25000) {
         mid_echo = 0;
+        printf("timeout\n");
         return 170;
     }
 
     //Divide by 148 to get inches as instructed in datasheet
-    return echo_total_time / 148.0;
+    double result = echo_total_time / 148.0;
+    //printf("distance: %.2lf inches\n", result);
+    return result;
 
 }
 

@@ -54,7 +54,7 @@ int current_servo_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = FORWARD; //TEMPORARILY SET TO FORWARD FOR TESTING PURPOSES 
+int current_state = CONFIGURE;
 
 //The colors the robot might search for
 #define RED 0
@@ -81,7 +81,7 @@ int robot_rotation_direction = LEFT;
 //The number of seconds the robot spends on each degree of search
 #define SEARCH_INTERVAL 0.01
 //The interval between checking distance while moving forward
-#define FORWARD_INTERVAL 1 //CHANGE THIS BACK TO 0.1 LATER
+#define FORWARD_INTERVAL 0.1 
 //The interval between updates of the display
 #define DISPLAY_REFRESH_INTERVAL 0.01
 
@@ -275,14 +275,14 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 
     if (degrees < 0) {
 
-        set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); //to be implemented by pwm?
+        set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); 
         set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
 
     }
 
     else if (degrees > 0) {
 
-        set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); //to be implemented by pwm?
+        set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); 
         set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
 
     }
@@ -301,7 +301,7 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 void stop_rotation_handler() {
 
     //Stop rotation
-    set_left_motor_speed(0); //to be implemented by pwm?
+    set_left_motor_speed(0); 
     set_right_motor_speed(0);
 
     //Move to the next state

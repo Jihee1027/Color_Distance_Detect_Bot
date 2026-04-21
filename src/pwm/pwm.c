@@ -14,7 +14,7 @@
 #define BIN1PIN 29 //right forward
 #define BIN2PIN 30 //right reverse
 
-#define STANDBY 31 //standby for motor driver, active high
+//#define STANDBY 31 //standby for motor driver, active high
 
 #define MOTORWRAP 31249 //combination for pwmF of 4kHz
 #define CLKDIV 1.0f
@@ -38,16 +38,16 @@ void init_pwm(void)
     gpio_init(AIN2PIN);
     gpio_init(BIN1PIN);
     gpio_init(BIN2PIN);
-    gpio_init(STANDBY);
+    //gpio_init(STANDBY);
 
     gpio_set_dir(AIN1PIN, GPIO_OUT);
     gpio_set_dir(AIN2PIN, GPIO_OUT);
     gpio_set_dir(BIN1PIN, GPIO_OUT);
     gpio_set_dir(BIN2PIN, GPIO_OUT);
-    gpio_set_dir(STANDBY, GPIO_OUT);
+    //gpio_set_dir(STANDBY, GPIO_OUT);
 
     //standby for motor driver needs to be high
-    gpio_put(STANDBY, 1);
+    //gpio_put(STANDBY, 1);
 
     //slice determination
     int right_slice;

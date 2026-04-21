@@ -26,7 +26,7 @@ static int motorstartDone = 0;
 
 
 //function for the initialization of the PWM pins needed
-void motorpwm_init(void)
+void init_pwm(void)
 {
     gpio_set_function(LEFT_MOTOR_PIN, GPIO_FUNC_PWM);
     gpio_set_function(RIGHT_MOTOR_PIN, GPIO_FUNC_PWM);

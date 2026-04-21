@@ -276,14 +276,14 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
     if (degrees < 0) {
 
         set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); 
-        set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
+        set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
 
     }
 
     else if (degrees > 0) {
 
         set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); 
-        set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
+        set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
 
     }
 

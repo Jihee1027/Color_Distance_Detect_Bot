@@ -54,7 +54,7 @@ float servo_get_current_angle(void);
 #define seconds_rotate_180 5.0
 
 //The current angle that the servo with the color sensor is oriented at.
-int current_servo_angle = 0;
+float current_servo_angle = 0;
 
 //For the states the robot can be in
 #define CONFIGURE 0
@@ -72,7 +72,7 @@ int current_state = SEARCH;
 #define BLUE 2
 
 //The color selected for the robot
-int target_color = GREEN;
+int target_color = BLUE;
 
 //Directions for rotation (of servo or robot)
 #define LEFT 0
@@ -89,7 +89,7 @@ int robot_rotation_direction = LEFT;
 //The interval between checks for color being selected
 #define CONFIGURE_INTERVAL 0.02
 //The number of seconds the robot spends on each degree of search
-#define SEARCH_INTERVAL 0.01
+#define SEARCH_INTERVAL 0.02
 //The interval between checking distance while moving forward
 #define FORWARD_INTERVAL 0.1 
 //The interval between updates of the display
@@ -247,6 +247,7 @@ void search_handler() {
 
         //go to ROTATE state
         current_state = ROTATE;
+        printf("going to ROTATE");
         timer0_hw->inte &= ~1;  //disable previous timer
         initialize_rotation(current_servo_angle);
 
@@ -261,25 +262,24 @@ void search_handler() {
 
             servo_rotation_direction = LEFT;
 
-        }
-        else {
+        }        
 
-            int degrees_to_turn;
+        float degrees_to_turn;
 
-            if (servo_rotation_direction == RIGHT) {
+        if (servo_rotation_direction == RIGHT) {
 
-                degrees_to_turn = SEARCH_INCREMENT;
+            degrees_to_turn = SEARCH_INCREMENT;
 
-            } else {
+        } else {
 
-                degrees_to_turn = -1 * SEARCH_INCREMENT;
-
-            }
-
-            servo_set_angle(degrees_to_turn); 
-            current_servo_angle += degrees_to_turn;
+            degrees_to_turn = -1 * SEARCH_INCREMENT;
 
         }
+
+        printf("degrees to turn = %f\n", degrees_to_turn);
+        servo_move_by(degrees_to_turn); 
+        current_servo_angle += degrees_to_turn;
+        
 
         //Arm timer again
         timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
@@ -294,21 +294,25 @@ Functions for ROTATE state
 
 void initialize_rotation(int degrees /*from -90 to 90*/) {
 
+    printf("entered initialize rotation\n");
+
     double seconds_rotate = fabs(degrees) * seconds_rotate_180 / 180.0;
 
     if (degrees < 0) {
+
+        set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); 
+        set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
+
+    }
+
+    else if (degrees > 0) {
 
         set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); 
         set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
 
     }
 
-    else if (degrees > 0) {
-
-        set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); 
-        set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
-
-    }
+    printf("set the motor speeds\n");
 
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;  
@@ -323,12 +327,15 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 
 void stop_rotation_handler() {
 
+    printf("\ngoing to stop rotation handler\n");
+
     //Stop rotation
     set_left_motor_speed(0); 
     set_right_motor_speed(0);
 
     //Move to the next state
     current_state = FORWARD;
+    printf("going to FORWARD");
     timer0_hw->inte &= ~1;  //disable previous timer
     initialize_distance_check_timer();
 
@@ -422,6 +429,8 @@ Other functions
 -----------------------------------------------------------------------------------*/
 
 void interrupt_handler() {
+
+    printf("interrupt handler, state %d\n", current_state);
 
     //acknoweldge interrupt
     timer0_hw->intr |= 1u;

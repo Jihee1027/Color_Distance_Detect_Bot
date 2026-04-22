@@ -45,6 +45,8 @@ void servo_init(void)
 
 void servo_set_angle(float angle) 
 {
+    printf("servo_set_angle, %f\n", angle);
+
     //clamp amgle to valid range
     if(angle < -90.0f) 
     {

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
-//#include "pwm.h"
+#include "pwm.h"
 
 #define LEFT_MOTOR_PIN 37 //pwmA motor driver
 #define RIGHT_MOTOR_PIN 38 //pwmB motor driver
@@ -123,6 +123,8 @@ void set_right_motor_speed(float speed)
 //function for setting the left motor speed
 void set_left_motor_speed(float speed)
 {
+    printf("set left motor speed %f\n", speed);
+
     if (speed > 1.0)
     {
         speed = 1.0; //sets it at max

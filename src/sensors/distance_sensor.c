@@ -127,7 +127,7 @@ double get_distance_inches() {
 
     //Divide by 148 to get inches as instructed in datasheet
     double result = echo_total_time / 148.0;
-    //printf("distance: %.2lf inches\n", result);
+    printf("distance: %.2lf inches\n", result);
     return result;
 
 }

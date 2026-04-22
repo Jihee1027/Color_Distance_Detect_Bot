@@ -100,7 +100,7 @@ void calibrate_colors() {
 
     }
 
-    //printf("\ncolors calibrated!\n");
+    printf("\ncolors calibrated!\n");
 
 }
 
@@ -139,7 +139,7 @@ int get_color() {
         color_ratios[i] = (double)(colors[i]) / (double)(color_baselines[i]);
     }
 
-    //printf("\n--------\nred: %f\ngreen: %f\nblue: %f\n--------\n", color_ratios[0], color_ratios[1], color_ratios[2]);
+    printf("\n--------\nred: %f\ngreen: %f\nblue: %f\n--------\n", color_ratios[0], color_ratios[1], color_ratios[2]);
 
     for (int i = 0; i <=2; i++) {
 

@@ -40,6 +40,16 @@ void display_update_timer_handler();
 void interrupt_handler();
 int get_state();
 
+void init_pwm(void);
+void set_right_motor_speed(float speed);
+void set_left_motor_speed(float speed);
+int areMotorsOn(void);
+
+void servo_init(void);
+void servo_set_angle(float);
+void servo_move_by(float);
+float servo_get_current_angle(void);
+
 //The number of seconds the robot takes to turn 180 degrees. Determined experimentally
 #define seconds_rotate_180 5.0
 
@@ -120,6 +130,7 @@ int main() {
 
     //Initialize components
     init_pwm();
+    servo_init();
     display_init();
     init_i2c();
     init_color_sensor();
@@ -157,7 +168,19 @@ int main() {
     }
 
     //infinite loop
-    while(1) {}
+    while(1) 
+    {
+
+    servo_set_angle(45.0);
+    set_left_motor_speed(-0.1);
+    set_right_motor_speed(0.2);
+    sleep_ms(5000);
+
+    servo_set_angle(0.0);
+    set_left_motor_speed(0.0);
+    set_right_motor_speed(0.0);
+    sleep_ms(2000);
+    }
 
     return 0;
 }
@@ -356,7 +379,7 @@ void distance_check_timer_handler() {
 
     } else {
 
-        float motor_speed = float(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
+        float motor_speed = (float)(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
         if (motor_speed > MAX_MOTOR_SPEED) {
             motor_speed = MAX_MOTOR_SPEED;
         }

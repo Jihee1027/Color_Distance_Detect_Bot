@@ -5,8 +5,8 @@
 #include "hardware/gpio.h"
 #include "hardware/timer.h"
 
-#define TRIG_GPIO 12
-#define ECHO_GPIO 13
+#define TRIG_GPIO 9
+#define ECHO_GPIO 10
 
 //volatile because modified by ISRs
 //unsigned to prevent overflow

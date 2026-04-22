@@ -171,15 +171,15 @@ int main() {
     while(1) 
     {
 
-    servo_set_angle(45.0);
-    set_left_motor_speed(-0.1);
-    set_right_motor_speed(0.2);
-    sleep_ms(5000);
+    // servo_set_angle(45.0);
+    // set_left_motor_speed(-0.1);
+    // set_right_motor_speed(0.2);
+    // sleep_ms(5000);
 
-    servo_set_angle(0.0);
-    set_left_motor_speed(0.0);
-    set_right_motor_speed(0.0);
-    sleep_ms(2000);
+    // servo_set_angle(0.0);
+    // set_left_motor_speed(0.0);
+    // set_right_motor_speed(0.0);
+    // sleep_ms(2000);
     }
 
     return 0;

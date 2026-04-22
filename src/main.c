@@ -64,7 +64,7 @@ int current_servo_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = CONFIGURE;
+int current_state = SEARCH;
 
 //The colors the robot might search for
 #define RED 0

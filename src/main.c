@@ -72,7 +72,7 @@ int current_state = CONFIGURE;
 #define BLUE 2
 
 //The color selected for the robot
-int target_color = RED;
+int target_color = GREEN;
 
 //Directions for rotation (of servo or robot)
 #define LEFT 0

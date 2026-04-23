@@ -31,8 +31,10 @@ void initialize_configure_timer();
 void configure_handler();
 void initialize_search_timer();
 void search_handler();
+void rotate_v2(int degrees);
 void initialize_rotation(int degrees);
 void stop_rotation_handler();
+void distance_v2();
 void initialize_distance_check_timer();
 void distance_check_timer_handler();
 void initialize_display_update_timer();
@@ -208,7 +210,6 @@ void configure_handler() {
     if (data.start_requested) { 
 
         target_color = data.selected_color; 
-        current_state = SEARCH;
         timer0_hw->inte &= ~1;  //disable previous timer
         initialize_search_timer();
 
@@ -226,6 +227,8 @@ Functions for SEARCH state
 -----------------------------------------------------------------------------------*/
 
 void initialize_search_timer() {
+
+    current_state = SEARCH;
 
     calibrate_colors();
 
@@ -246,10 +249,10 @@ void search_handler() {
     if (color_check(target_color)) {
 
         //go to ROTATE state
-        current_state = ROTATE;
-        printf("going to ROTATE");
+        //printf("going to ROTATE");
         timer0_hw->inte &= ~1;  //disable previous timer
-        initialize_rotation(current_servo_angle);
+        //initialize_rotation(current_servo_angle);
+        rotate_v2(current_servo_angle);
 
     } else {
 
@@ -276,7 +279,7 @@ void search_handler() {
 
         }
 
-        printf("degrees to turn = %f\n", degrees_to_turn);
+        //printf("degrees to turn = %f\n", degrees_to_turn);
         servo_move_by(degrees_to_turn); 
         current_servo_angle += degrees_to_turn;
         
@@ -292,9 +295,11 @@ void search_handler() {
 Functions for ROTATE state
 -----------------------------------------------------------------------------------*/
 
-void initialize_rotation(int degrees /*from -90 to 90*/) {
+void rotate_v2(int degrees) {
 
-    printf("entered initialize rotation\n");
+    printf("rotate_v2 called\n");
+
+    current_state = ROTATE;
 
     double seconds_rotate = fabs(degrees) * seconds_rotate_180 / 180.0;
 
@@ -312,99 +317,183 @@ void initialize_rotation(int degrees /*from -90 to 90*/) {
 
     }
 
-    printf("set the motor speeds\n");
+    printf("starting busy wait\n");
 
-    //Enable interrupt for timer0 alarm0
-    timer0_hw->inte |= 1;  
+    busy_wait_ms(1000 * seconds_rotate);
 
-    //Enable IRQ TIMER0_IRQ_0
-    irq_set_enabled(TIMER0_IRQ_0, 1);
-
-    //Set TIMER0 to fire alarm 0 after (seconds_rotate) seconds
-    timer0_hw->alarm[0] = timer0_hw->timerawl + (seconds_rotate * 1000000);
-
-}
-
-void stop_rotation_handler() {
-
-    printf("\ngoing to stop rotation handler\n");
+    printf("ending busy wait\n");
 
     //Stop rotation
     set_left_motor_speed(0); 
     set_right_motor_speed(0);
 
-    //Move to the next state
-    current_state = FORWARD;
-    printf("going to FORWARD");
-    timer0_hw->inte &= ~1;  //disable previous timer
-    initialize_distance_check_timer();
+    //go to distance state
+    distance_v2();
 
 }
+
+// void initialize_rotation(int degrees /*from -90 to 90*/) {
+
+//     current_state = ROTATE;
+
+//     //printf("entered initialize rotation\n");
+
+//     double seconds_rotate = fabs(degrees) * seconds_rotate_180 / 180.0;
+
+//     if (degrees < 0) {
+
+//         set_left_motor_speed(0.5 * MAX_MOTOR_SPEED); 
+//         set_right_motor_speed(0.5 * MAX_MOTOR_SPEED);
+
+//     }
+
+//     else if (degrees > 0) {
+
+//         set_left_motor_speed(-0.5 * MAX_MOTOR_SPEED); 
+//         set_right_motor_speed(-0.5 * MAX_MOTOR_SPEED);
+
+//     }
+
+//     //printf("set the motor speeds\n");
+
+//     //Enable interrupt for timer0 alarm0
+//     timer0_hw->inte |= 1;  
+
+//     //Enable IRQ TIMER0_IRQ_0
+//     irq_set_enabled(TIMER0_IRQ_0, 1);
+
+//     //Set TIMER0 to fire alarm 0 after (seconds_rotate) seconds
+//     timer0_hw->alarm[0] = timer0_hw->timerawl + (seconds_rotate * 1000000);
+
+// }
+
+// void stop_rotation_handler() {
+
+//     //printf("\ngoing to stop rotation handler\n");
+
+//     //Stop rotation
+//     set_left_motor_speed(0); 
+//     set_right_motor_speed(0);
+
+//     //Move to the next state
+//     //printf("going to FORWARD");
+//     timer0_hw->inte &= ~1;  //disable previous timer
+//     //initialize_distance_check_timer();
+//     distance_v2();
+
+// }
 
 /*-----------------------------------------------------------------------------------
 Functions for FORWARD state
 -----------------------------------------------------------------------------------*/
 
-void initialize_distance_check_timer() {
+void distance_v2() {
 
-    init_echo_gpio_irq();
+    current_state = FORWARD;
 
-    //Enable interrupt for timer0 alarm0
-    timer0_hw->inte |= 1;
+    while (current_state == FORWARD) {
 
-    //Enable IRQ TIMER0_IRQ_0
-    irq_set_enabled(TIMER0_IRQ_0, 1);
+        printf("distance loop\n");
 
-    //Set TIMER0 to fire alarm 0 after FORWARD_INTERVAL seconds
-    timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+        send_pulse();
 
-}
+        double distance_inches = get_distance_inches();
 
-void distance_check_timer_handler() {
+        data.distance_in = distance_inches;
 
-    send_pulse();
-    double distance_inches = get_distance_inches();
-
-    data.distance_in = distance_inches;
-
-    //To prevent complications from how on the first check distance_inches will probably be 0
-    if (first_distance_check) {
-        first_distance_check = false;
-        //Arm timer again
-        timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
-        return;
-    }
-
-    if (distance_inches < 2.1) {
-
-        //go to STOPPED state
-        set_left_motor_speed(0); 
-        set_right_motor_speed(0);
-        timer0_hw->inte &= ~1;  //disable previous timer
-        current_state = STOPPED;
-        initialize_display_update_timer();
-
-    } else {
-
-        float motor_speed = (float)(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
-        if (motor_speed > MAX_MOTOR_SPEED) {
-            motor_speed = MAX_MOTOR_SPEED;
+        //To prevent complications from how on the first check distance_inches will probably be 0
+        if (first_distance_check) {
+            first_distance_check = false;
+            continue;
         }
-        set_left_motor_speed(motor_speed); 
-        set_right_motor_speed(-motor_speed);
 
-        //Arm timer again
-        timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+        if (distance_inches < 2.1) {
+
+            //go to STOPPED state
+            set_left_motor_speed(0); 
+            set_right_motor_speed(0);
+            current_state = STOPPED;
+
+        } else {
+
+            float motor_speed = (float)(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
+            if (motor_speed > MAX_MOTOR_SPEED) {
+                motor_speed = MAX_MOTOR_SPEED;
+            }
+            set_left_motor_speed(motor_speed); 
+            set_right_motor_speed(-motor_speed);
+
+        }
+
+        busy_wait_ms(1000 * FORWARD_INTERVAL);
 
     }
 
 }
+
+// void initialize_distance_check_timer() {
+
+//     current_state = FORWARD;
+
+//     init_echo_gpio_irq();
+
+//     //Enable interrupt for timer0 alarm0
+//     timer0_hw->inte |= 1;
+
+//     //Enable IRQ TIMER0_IRQ_0
+//     irq_set_enabled(TIMER0_IRQ_0, 1);
+
+//     //Set TIMER0 to fire alarm 0 after FORWARD_INTERVAL seconds
+//     timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+
+// }
+
+// void distance_check_timer_handler() {
+
+//     send_pulse();
+//     double distance_inches = get_distance_inches();
+
+//     data.distance_in = distance_inches;
+
+//     //To prevent complications from how on the first check distance_inches will probably be 0
+//     if (first_distance_check) {
+//         first_distance_check = false;
+//         //Arm timer again
+//         timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+//         return;
+//     }
+
+//     if (distance_inches < 2.1) {
+
+//         //go to STOPPED state
+//         set_left_motor_speed(0); 
+//         set_right_motor_speed(0);
+//         timer0_hw->inte &= ~1;  //disable previous timer
+//         initialize_display_update_timer();
+
+//     } else {
+
+//         float motor_speed = (float)(MAX_MOTOR_SPEED * 0.25f * sqrt(distance_inches - 2.0f));
+//         if (motor_speed > MAX_MOTOR_SPEED) {
+//             motor_speed = MAX_MOTOR_SPEED;
+//         }
+//         set_left_motor_speed(motor_speed); 
+//         set_right_motor_speed(-motor_speed);
+
+//         //Arm timer again
+//         timer0_hw->alarm[0] = timer0_hw->timerawl + (FORWARD_INTERVAL * 1000000);
+
+//     }
+
+// }
 
 /*-----------------------------------------------------------------------------------
 Functions for STOPPED state
 -----------------------------------------------------------------------------------*/
 
 void initialize_display_update_timer() {
+
+    current_state = STOPPED;
 
     //Enable interrupt for timer0 alarm0
     timer0_hw->inte |= 1;
@@ -430,7 +519,7 @@ Other functions
 
 void interrupt_handler() {
 
-    printf("interrupt handler, state %d\n", current_state);
+    //printf("interrupt handler, state %d\n", current_state);
 
     //acknoweldge interrupt
     timer0_hw->intr |= 1u;

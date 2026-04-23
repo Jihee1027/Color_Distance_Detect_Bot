@@ -155,21 +155,25 @@ int main() {
     switch (current_state) {
         case CONFIGURE: {
             initialize_configure_timer();
+            current_state = SEARCH;
             break;
         }
         case SEARCH: {
             //initialize_search_timer();
             search_v2();
+            current_state = ROTATE;
             break;
         }
         case ROTATE: {
             //initialize_rotation(0); //can change argument for debugging purposes
-            rotate_v2(0);
+            rotate_v2(current_servo_angle);
+            current_state = FOWARD;
             break;
         }
         case FORWARD: {
             //initialize_distance_check_timer();
             distance_v2();
+            current_state = STOPPED;
             break;
         }
         case STOPPED: {

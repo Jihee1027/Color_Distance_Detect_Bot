@@ -11,6 +11,7 @@
 #include "display/display.h"
 #include "display/display_button.h"
 #include "battery/battery.h"
+#include "adc.h"
 
 /*
 TIMER USAGE
@@ -30,18 +31,19 @@ Timer1
 
 void initialize_configure_timer();
 void configure_handler();
+// void initialize_search_timer();
+// void search_handler();
+// void initialize_rotation(int degrees);
+// void stop_rotation_handler();
 void search_v2();
-void initialize_search_timer();
-void search_handler();
 void rotate_v2(float degrees);
-void initialize_rotation(int degrees);
-void stop_rotation_handler();
 void distance_v2();
-void initialize_distance_check_timer();
-void distance_check_timer_handler();
-void initialize_display_update_timer();
-void display_update_timer_handler();
-void interrupt_handler();
+void stopped_v2();
+// void initialize_distance_check_timer();
+// void distance_check_timer_handler();
+// void initialize_display_update_timer();
+// void display_update_timer_handler();
+// void interrupt_handler();
 int get_state();
 
 void init_pwm(void);
@@ -97,7 +99,7 @@ int robot_rotation_direction = LEFT;
 //The interval between checking distance while moving forward
 #define FORWARD_INTERVAL 0.1 
 //The interval between updates of the display
-#define DISPLAY_REFRESH_INTERVAL 0.01
+#define STOPPED_INTERVAL 1
 
 //The maximum motor speed the robot will use
 #define MAX_MOTOR_SPEED 1.0
@@ -551,6 +553,7 @@ void distance_v2() {
             set_right_motor_speed(0);
             data.state = DISPLAY_STATE_STOPPED;
             current_state = STOPPED;
+            stopped_v2();
 
         } else {
 
@@ -630,27 +633,62 @@ void distance_v2() {
 Functions for STOPPED state
 -----------------------------------------------------------------------------------*/
 
-void initialize_display_update_timer() {
+void stopped_v2() {
 
     current_state = STOPPED;
 
-    //Enable interrupt for timer0 alarm0
-    timer0_hw->inte |= 1;
+    while (current_state == STOPPED) {
 
-    //Enable IRQ TIMER0_IRQ_0
-    irq_set_enabled(TIMER0_IRQ_0, 1);
+        //Get ADC value
+        uint16_t adc_value = get_adc_value();
+        
+        printf("ADC value: %d\n", adc_value);
 
-    //Set TIMER0 to fire alarm 3 after DISPLAY_REFRESH_INTERVAL seconds
-    timer0_hw->alarm[0] = timer0_hw->timerawl + (DISPLAY_REFRESH_INTERVAL * 1000000);
+        double estimated_voltage = 3.3 * (double)adc_value / (double)0b111111111111; 
+
+        printf("Voltage: : %d\n", estimated_voltage);
+
+        if (estimated_voltage < 0.5) {
+
+            printf("Light level: DARK\n");
+
+        } else if (estimated_voltage < 2.2) {
+
+            printf("Light level: MEDIUM\n");
+
+        } else {
+
+            printf("Light level: BRIGHT\n");
+
+        }
+
+        sleep_ms(1000 * STOPPED_INTERVAL);
+
+    }
 
 }
 
-void display_update_timer_handler() {
+// void initialize_display_update_timer() {
 
-    //Update display
-    //display_update(); //NEED PARAMETER FOR THIS?
+//     current_state = STOPPED;
 
-}
+//     //Enable interrupt for timer0 alarm0
+//     timer0_hw->inte |= 1;
+
+//     //Enable IRQ TIMER0_IRQ_0
+//     irq_set_enabled(TIMER0_IRQ_0, 1);
+
+//     //Set TIMER0 to fire alarm 3 after STOPPED_INTERVAL onds
+//     timer0_hw->alarm[0] = timer0_hw->timerawl + (STOPPED_INTERVAL 000000);
+
+// }
+
+// void display_update_timer_handler() {
+
+//     //Update display
+//     //display_update(); //NEED PARAMETER FOR THIS?
+
+// }
 
 /*-----------------------------------------------------------------------------------
 Other functions

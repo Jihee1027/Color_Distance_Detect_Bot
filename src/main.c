@@ -167,7 +167,7 @@ int main() {
         case ROTATE: {
             //initialize_rotation(0); //can change argument for debugging purposes
             rotate_v2(current_servo_angle);
-            current_state = FOWARD;
+            current_state = FORWARD;
             break;
         }
         case FORWARD: {

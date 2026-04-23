@@ -38,7 +38,7 @@ typedef enum {
 typedef struct {
     display_screen_t screen;
     float distance_in;
-    float total_distance_in;
+    // float total_distance_in;
     float battery_v;
     const char *color_name;
     display_state_t state;

@@ -68,7 +68,7 @@ float current_servo_angle = 0;
 #define STOPPED 4
 
 //The robot's current state
-int current_state = SEARCH;
+int current_state = CONFIGURE;
 
 //The colors the robot might search for
 #define RED 0
@@ -109,7 +109,7 @@ int first_distance_check = true;
 display_data_t data = {
     .screen = DISPLAY_SCREEN_START,
     .distance_in = 0.0f,
-    .total_distance_in = 10.0f,
+    // .total_distance_in = 10.0f,
     .battery_v = 7.8f,
     .color_name = "",
     .state = DISPLAY_STATE_MOVING,
@@ -122,6 +122,34 @@ display_data_t data = {
     .distance_done_pulse = false
 };
 
+static void refresh_display(void) {
+    data.battery_v = battery_get_voltage();
+    display_render(&data);
+}
+
+void configure_v2(void) {
+    current_state = CONFIGURE;
+    data.screen = DISPLAY_SCREEN_START;
+    data.start_requested = false;
+    data.color_locked = false;
+
+    while (!data.start_requested) {
+        refresh_display();
+        sleep_ms(10);
+    }
+
+    target_color = data.selected_color;
+
+    if (target_color == RED) {
+        data.color_name = "RED";
+    } else if (target_color == GREEN) {
+        data.color_name = "GREEN";
+    } else if (target_color == BLUE) {
+        data.color_name = "BLUE";
+    }
+
+    data.color_locked = true;
+}
 /*-----------------------------------------------------------------------------------
 Main function
 -----------------------------------------------------------------------------------*/
@@ -135,7 +163,6 @@ int main() {
     //Initialize components
     init_pwm();
     servo_init();
-    display_init();
     init_i2c();
     init_color_sensor();
     init_distance_gpio();
@@ -153,39 +180,49 @@ int main() {
     //irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
 
     //Start program logic
-    switch (current_state) {
-        case CONFIGURE: {
-            initialize_configure_timer();
-            current_state = SEARCH;
-            break;
+    while (1) {
+        switch (current_state) {
+            case CONFIGURE: {
+                // initialize_configure_timer();
+                configure_v2();
+                current_state = SEARCH;
+                break;
+            }
+            case SEARCH: {
+                //initialize_search_timer();
+                search_v2();
+                // current_state = ROTATE;
+                break;
+            }
+            case ROTATE: {
+                //initialize_rotation(0); //can change argument for debugging purposes
+                rotate_v2(current_servo_angle);
+                // current_state = FORWARD;
+                break;
+            }
+            case FORWARD: {
+                //initialize_distance_check_timer();
+                distance_v2();
+                // current_state = STOPPED;
+                break;
+            }
+            case STOPPED: {
+                // initialize_display_update_timer();
+                data.screen = DISPLAY_SCREEN_STOPPED;
+                data.state = DISPLAY_STATE_STOPPED;
+                refresh_display();
+                sleep_ms(20);
+                break;
+            }
         }
-        case SEARCH: {
-            //initialize_search_timer();
-            search_v2();
-            current_state = ROTATE;
-            break;
-        }
-        case ROTATE: {
-            //initialize_rotation(0); //can change argument for debugging purposes
-            rotate_v2(current_servo_angle);
-            current_state = FORWARD;
-            break;
-        }
-        case FORWARD: {
-            //initialize_distance_check_timer();
-            distance_v2();
-            current_state = STOPPED;
-            break;
-        }
-        case STOPPED: {
-            initialize_display_update_timer();
-            break;
-        }
+        data.battery_v = battery_get_voltage();
+        sleep_ms(10);
+
     }
 
     //infinite loop
-    while(1) 
-    {
+    // while(1) 
+    // {
 
     // servo_set_angle(45.0);
     // set_left_motor_speed(-0.1);
@@ -198,8 +235,8 @@ int main() {
     // sleep_ms(2000);
 
     //battery update
-        data.battery_v = battery_get_voltage();
-    }
+    //     data.battery_v = battery_get_voltage();
+    // }
 
     return 0;
 }
@@ -245,16 +282,24 @@ Functions for SEARCH state
 -----------------------------------------------------------------------------------*/
 
 void search_v2() {
-
+    current_state = SEARCH;
+    data.screen = DISPLAY_SCREEN_LOADING;
+    data.loading_stage = DISPLAY_LOADING_STAGE_SEARCH_COLOR;
     calibrate_colors();
 
     while (current_state == SEARCH) {
 
         //check color
         if (color_check(target_color)) {
+            data.color_found_pulse = true;
+            refresh_display();
+            sleep_ms(150);
+            data.color_found_pulse = false;
 
             //go to ROTATE state
-            rotate_v2(current_servo_angle);
+            // rotate_v2(current_servo_angle);
+            current_state = ROTATE;
+            return;
 
         } else {
 
@@ -285,6 +330,7 @@ void search_v2() {
             servo_move_by(degrees_to_turn); 
             current_servo_angle += degrees_to_turn;
 
+            sleep_ms(20);
         }
 
     }
@@ -365,6 +411,9 @@ void rotate_v2(float degrees) {
     printf("rotate_v2 called\n");
 
     current_state = ROTATE;
+    data.screen = DISPLAY_SCREEN_LOADING;
+    data.loading_stage = DISPLAY_LOADING_STAGE_CALC_DISTANCE;
+    refresh_display();
 
     double seconds_rotate = fabs(degrees) * seconds_rotate_180 / 180.0;
 
@@ -390,7 +439,13 @@ void rotate_v2(float degrees) {
 
     printf("sleeping for %lf seconds\n", seconds_rotate);
 
-    sleep_ms(1000 * seconds_rotate);
+    absolute_time_t start = get_absolute_time();
+    while (absolute_time_diff_us(start, get_absolute_time()) < (int64_t)(seconds_rotate * 1000000.0)) {
+        refresh_display();
+        sleep_ms(10);
+    }
+
+    // sleep_ms(1000 * seconds_rotate);
 
     printf("ending sleep statement\n");
 
@@ -398,8 +453,15 @@ void rotate_v2(float degrees) {
     set_left_motor_speed(0); 
     set_right_motor_speed(0);
 
+    data.distance_done_pulse = true;
+    refresh_display();
+    sleep_ms(150);
+    data.distance_done_pulse = false;
+
+    current_state = FORWARD;
+
     //go to distance state
-    distance_v2();
+    // distance_v2();
 
 }
 
@@ -462,9 +524,11 @@ void distance_v2() {
 
     printf("distance start\n");
     current_state = FORWARD;
+    data.screen = DISPLAY_SCREEN_DRIVE;
+    data.state = DISPLAY_STATE_MOVING;
 
     while (current_state == FORWARD) {
-
+        
         printf("distance loop\n");
 
         send_pulse();
@@ -477,14 +541,15 @@ void distance_v2() {
         //To prevent complications from how on the first check distance_inches will probably be 0
         if (first_distance_check) {
             first_distance_check = false;
+            sleep_ms(1000 * FORWARD_INTERVAL);
             continue;
         }
-
         if (distance_inches < 2.1) {
 
             //go to STOPPED state
             set_left_motor_speed(0); 
             set_right_motor_speed(0);
+            data.state = DISPLAY_STATE_STOPPED;
             current_state = STOPPED;
 
         } else {
@@ -495,9 +560,10 @@ void distance_v2() {
             }
             set_left_motor_speed(motor_speed); 
             set_right_motor_speed(-motor_speed);
+            data.state = DISPLAY_STATE_MOVING;
 
         }
-
+        refresh_display();
         sleep_ms(1000 * FORWARD_INTERVAL);
 
     }

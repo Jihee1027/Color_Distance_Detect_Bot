@@ -83,27 +83,27 @@ static void drive_draw_shadowed_text(int x, int y, const char *text, uint8_t sca
 static void drive_draw_status_text(const display_data_t *data) {
     const uint8_t scale = 1;
     char battery_line[24];
-    char total_line[28];
-    char current_line[28];
+    char distance_line[28];
+    char color_line[28];
 
     snprintf(battery_line, sizeof(battery_line), "BATTERY: %.1fV", data->battery_v);
-    snprintf(total_line, sizeof(total_line), "TOTAL: %.1f in", data->total_distance_in);
-    snprintf(current_line, sizeof(current_line), "CURRENT: %.1f in", data->distance_in);
+    snprintf(distance_line, sizeof(distance_line), "DISTANCE: %.1f in", data->distance_in);
+    snprintf(color_line, sizeof(color_line), "COLOR: %s", data->color_name ? data->color_name : "");
 
     const int battery_w = (int)text_get_width(battery_line, scale);
 
     const int left_x = 10;
-    const int total_y = 200;
-    const int current_y = 215;
+    const int distance_y = 200;
+    const int color_y = 215;
     const int battery_x = TFT_WIDTH - battery_w - 10;
     const int battery_y = 215;
 
-    if (strip_intersects_y(total_y, 8)) {
-        drive_draw_shadowed_text(left_x, total_y, total_line, scale);
+    if (strip_intersects_y(distance_y, 8)) {
+        drive_draw_shadowed_text(left_x, distance_y, distance_line, scale);
     }
 
-    if (strip_intersects_y(current_y, 8)) {
-        drive_draw_shadowed_text(left_x, current_y, current_line, scale);
+    if (strip_intersects_y(color_y, 8)) {
+        drive_draw_shadowed_text(left_x, color_y, color_line, scale);
         drive_draw_shadowed_text(battery_x, battery_y, battery_line, scale);
     }
 }

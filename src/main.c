@@ -139,10 +139,14 @@ int main() {
     init_i2c();
     init_color_sensor();
     init_distance_gpio();
+    battery_init();
 
     //Display Data
     display_init();
     display_button_init();
+
+    //setting the initial battery voltage
+    data.battery_v = battery_get_voltage();
 
     //Set interrupt handler
     //irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
@@ -187,6 +191,9 @@ int main() {
     // set_left_motor_speed(0.0);
     // set_right_motor_speed(0.0);
     // sleep_ms(2000);
+
+    //battery update
+        data.battery_v = battery_get_voltage();
     }
 
     return 0;

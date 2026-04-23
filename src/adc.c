@@ -43,6 +43,13 @@ void init_adc() {
 
 }
 
+uint16_t read_adc() 
+{
+    //sets the ADC_CS_START_ONCE bit to begin a single conversation
+    return adc_read(); //waits for conversion to complete and returns the result
+    
+}
+
 void init_adc_freerun() {
     
     init_adc();

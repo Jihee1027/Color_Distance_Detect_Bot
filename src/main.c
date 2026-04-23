@@ -56,6 +56,7 @@ void servo_set_angle(float);
 void servo_move_by(float);
 float servo_get_current_angle(void);
 
+
 //The number of seconds the robot takes to turn 180 degrees. Determined experimentally
 #define seconds_rotate_180 5.0
 
@@ -180,7 +181,7 @@ int main() {
 
     //Set interrupt handler
     //irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
-
+    
     //Start program logic
     while (1) {
         switch (current_state) {
@@ -646,7 +647,7 @@ void stopped_v2() {
 
         double estimated_voltage = 3.3 * (double)adc_value / (double)0b111111111111; 
 
-        printf("Voltage: : %d\n", estimated_voltage);
+        printf("Voltage: : %lf\n", estimated_voltage);
 
         if (estimated_voltage < 0.5) {
 

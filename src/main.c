@@ -460,7 +460,7 @@ Functions for FORWARD state
 
 void distance_v2() {
 
-    printf("distance loop\n");
+    printf("distance start\n");
     current_state = FORWARD;
 
     while (current_state == FORWARD) {

@@ -32,7 +32,7 @@ void configure_handler();
 void search_v2();
 void initialize_search_timer();
 void search_handler();
-void rotate_v2(int degrees);
+void rotate_v2(float degrees);
 void initialize_rotation(int degrees);
 void stop_rotation_handler();
 void distance_v2();
@@ -349,7 +349,7 @@ void search_v2() {
 Functions for ROTATE state
 -----------------------------------------------------------------------------------*/
 
-void rotate_v2(int degrees) {
+void rotate_v2(float degrees) {
 
     printf("rotate_v2 called\n");
 

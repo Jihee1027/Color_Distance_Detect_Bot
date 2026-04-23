@@ -140,6 +140,7 @@ int main() {
     init_color_sensor();
     init_distance_gpio();
     battery_init();
+    init_echo_gpio_irq();
 
     //Display Data
     display_init();
@@ -244,8 +245,6 @@ Functions for SEARCH state
 -----------------------------------------------------------------------------------*/
 
 void search_v2() {
-
-    current_state = SEARCH;
 
     calibrate_colors();
 
@@ -461,6 +460,7 @@ Functions for FORWARD state
 
 void distance_v2() {
 
+    printf("distance loop\n");
     current_state = FORWARD;
 
     while (current_state == FORWARD) {
@@ -468,7 +468,8 @@ void distance_v2() {
         printf("distance loop\n");
 
         send_pulse();
-
+        sleep_ms(10);
+        
         double distance_inches = get_distance_inches();
 
         data.distance_in = distance_inches;

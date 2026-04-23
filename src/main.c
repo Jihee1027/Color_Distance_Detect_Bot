@@ -29,6 +29,7 @@ Timer1
 
 void initialize_configure_timer();
 void configure_handler();
+void search_v2();
 void initialize_search_timer();
 void search_handler();
 void rotate_v2(int degrees);
@@ -143,7 +144,7 @@ int main() {
     display_button_init();
 
     //Set interrupt handler
-    irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
+    //irq_set_exclusive_handler(TIMER0_IRQ_0, interrupt_handler);
 
     //Start program logic
     switch (current_state) {
@@ -152,15 +153,18 @@ int main() {
             break;
         }
         case SEARCH: {
-            initialize_search_timer();
+            //initialize_search_timer();
+            search_v2();
             break;
         }
         case ROTATE: {
-            initialize_rotation(0); //can change argument for debugging purposes
+            //initialize_rotation(0); //can change argument for debugging purposes
+            rotate_v2(0);
             break;
         }
         case FORWARD: {
-            initialize_distance_check_timer();
+            //initialize_distance_check_timer();
+            distance_v2();
             break;
         }
         case STOPPED: {
@@ -211,7 +215,8 @@ void configure_handler() {
 
         target_color = data.selected_color; 
         timer0_hw->inte &= ~1;  //disable previous timer
-        initialize_search_timer();
+        //initialize_search_timer();
+        search_v2();
 
     } else {
 
@@ -226,70 +231,119 @@ void configure_handler() {
 Functions for SEARCH state
 -----------------------------------------------------------------------------------*/
 
-void initialize_search_timer() {
+void search_v2() {
 
     current_state = SEARCH;
 
     calibrate_colors();
 
-    //Enable interrupt for timer0 alarm0
-    timer0_hw->inte |= 1;  
+    while (current_state == SEARCH) {
 
-    //Enable IRQ TIMER0_IRQ_0
-    irq_set_enabled(TIMER0_IRQ_0, 1);
+        //check color
+        if (color_check(target_color)) {
 
-    //Set TIMER0 to fire alarm 1 after SEARCH_INTERVAL seconds
-    timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
-
-}
-
-void search_handler() {
-
-    //check color
-    if (color_check(target_color)) {
-
-        //go to ROTATE state
-        //printf("going to ROTATE");
-        timer0_hw->inte &= ~1;  //disable previous timer
-        //initialize_rotation(current_servo_angle);
-        rotate_v2(current_servo_angle);
-
-    } else {
-
-        //Move the servo
-        if (current_servo_angle <= -90) {
-
-            servo_rotation_direction = RIGHT;
-
-        } else if (current_servo_angle >= 90) {
-
-            servo_rotation_direction = LEFT;
-
-        }        
-
-        float degrees_to_turn;
-
-        if (servo_rotation_direction == RIGHT) {
-
-            degrees_to_turn = SEARCH_INCREMENT;
+            //go to ROTATE state
+            rotate_v2(current_servo_angle);
 
         } else {
 
-            degrees_to_turn = -1 * SEARCH_INCREMENT;
+            //Move the servo
+            if (current_servo_angle <= -90) {
+
+                servo_rotation_direction = RIGHT;
+
+            } else if (current_servo_angle >= 90) {
+
+                servo_rotation_direction = LEFT;
+
+            }        
+
+            float degrees_to_turn;
+
+            if (servo_rotation_direction == RIGHT) {
+
+                degrees_to_turn = SEARCH_INCREMENT;
+
+            } else {
+
+                degrees_to_turn = -1 * SEARCH_INCREMENT;
+
+            }
+
+            //printf("degrees to turn = %f\n", degrees_to_turn);
+            servo_move_by(degrees_to_turn); 
+            current_servo_angle += degrees_to_turn;
 
         }
-
-        //printf("degrees to turn = %f\n", degrees_to_turn);
-        servo_move_by(degrees_to_turn); 
-        current_servo_angle += degrees_to_turn;
-        
-
-        //Arm timer again
-        timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
 
     }
 
 }
+
+// void initialize_search_timer() {
+
+//     current_state = SEARCH;
+
+//     calibrate_colors();
+
+//     //Enable interrupt for timer0 alarm0
+//     timer0_hw->inte |= 1;  
+
+//     //Enable IRQ TIMER0_IRQ_0
+//     irq_set_enabled(TIMER0_IRQ_0, 1);
+
+//     //Set TIMER0 to fire alarm 1 after SEARCH_INTERVAL seconds
+//     timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
+
+// }
+
+// void search_handler() {
+
+//     //check color
+//     if (color_check(target_color)) {
+
+//         //go to ROTATE state
+//         //printf("going to ROTATE");
+//         timer0_hw->inte &= ~1;  //disable previous timer
+//         //initialize_rotation(current_servo_angle);
+//         rotate_v2(current_servo_angle);
+
+//     } else {
+
+//         //Move the servo
+//         if (current_servo_angle <= -90) {
+
+//             servo_rotation_direction = RIGHT;
+
+//         } else if (current_servo_angle >= 90) {
+
+//             servo_rotation_direction = LEFT;
+
+//         }        
+
+//         float degrees_to_turn;
+
+//         if (servo_rotation_direction == RIGHT) {
+
+//             degrees_to_turn = SEARCH_INCREMENT;
+
+//         } else {
+
+//             degrees_to_turn = -1 * SEARCH_INCREMENT;
+
+//         }
+
+//         //printf("degrees to turn = %f\n", degrees_to_turn);
+//         servo_move_by(degrees_to_turn); 
+//         current_servo_angle += degrees_to_turn;
+        
+
+//         //Arm timer again
+//         timer0_hw->alarm[0] = timer0_hw->timerawl + (SEARCH_INTERVAL * 1000000);
+
+//     }
+
+// }
 
 /*-----------------------------------------------------------------------------------
 Functions for ROTATE state
@@ -317,11 +371,11 @@ void rotate_v2(int degrees) {
 
     }
 
-    printf("starting busy wait\n");
+    printf("sleeping for %lf seconds\n", seconds_rotate);
 
-    busy_wait_ms(1000 * seconds_rotate);
+    sleep_ms(1000 * seconds_rotate);
 
-    printf("ending busy wait\n");
+    printf("ending sleep statement\n");
 
     //Stop rotation
     set_left_motor_speed(0); 
@@ -425,7 +479,7 @@ void distance_v2() {
 
         }
 
-        busy_wait_ms(1000 * FORWARD_INTERVAL);
+        sleep_ms(1000 * FORWARD_INTERVAL);
 
     }
 
@@ -517,22 +571,22 @@ void display_update_timer_handler() {
 Other functions
 -----------------------------------------------------------------------------------*/
 
-void interrupt_handler() {
+// void interrupt_handler() {
 
-    //printf("interrupt handler, state %d\n", current_state);
+//     //printf("interrupt handler, state %d\n", current_state);
 
-    //acknoweldge interrupt
-    timer0_hw->intr |= 1u;
+//     //acknoweldge interrupt
+//     timer0_hw->intr |= 1u;
 
-    switch (current_state) {
-        case CONFIGURE: configure_handler(); break;
-        case SEARCH: search_handler(); break;
-        case ROTATE: stop_rotation_handler(); break;
-        case FORWARD: distance_check_timer_handler(); break;
-        case STOPPED: display_update_timer_handler(); break;
-    }
+//     switch (current_state) {
+//         case CONFIGURE: configure_handler(); break;
+//         case SEARCH: search_handler(); break;
+//         case ROTATE: stop_rotation_handler(); break;
+//         case FORWARD: distance_check_timer_handler(); break;
+//         case STOPPED: display_update_timer_handler(); break;
+//     }
 
-}
+// }
 
 int get_state() {
 

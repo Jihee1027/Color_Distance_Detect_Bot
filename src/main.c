@@ -51,6 +51,10 @@ void set_right_motor_speed(float speed);
 void set_left_motor_speed(float speed);
 int areMotorsOn(void);
 
+void init_adc();
+void init_adc_freerun();
+uint16_t get_adc_value();
+
 void servo_init(void);
 void servo_set_angle(float);
 void servo_move_by(float);
@@ -171,7 +175,9 @@ int main() {
     init_distance_gpio();
     battery_init();
     init_echo_gpio_irq();
-
+    init_adc();
+    init_adc_freerun();
+    get_adc_value();
     //Display Data
     display_init();
     display_button_init();
@@ -649,7 +655,7 @@ void stopped_v2() {
 
         printf("Voltage: : %lf\n", estimated_voltage);
 
-        if (estimated_voltage < 0.5) {
+        if (estimated_voltage < 0.75) {
 
             printf("Light level: DARK\n");
 

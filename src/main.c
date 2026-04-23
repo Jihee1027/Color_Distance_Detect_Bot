@@ -379,6 +379,12 @@ void rotate_v2(float degrees) {
 
     }
 
+    else
+    {
+        set_left_motor_speed(0); 
+        set_right_motor_speed(0);
+    }
+
     printf("sleeping for %lf seconds\n", seconds_rotate);
 
     sleep_ms(1000 * seconds_rotate);

@@ -10,6 +10,7 @@
 #include "sensors/distance_sensor.h"
 #include "display/display.h"
 #include "display/display_button.h"
+#include "battery/battery.h"
 
 /*
 TIMER USAGE
